@@ -69,8 +69,8 @@ st.markdown(
     f"""
     <div id="top" class="hero-wrap">
       <p class="hero-kicker">Machine Learning Case Study · Series Temporales</p>
-      <h1 class="hero-title">Una cadena de supermercados decide cuánto comprar y cuánto personal necesita sin saber, todavía, cuánto va a vender la próxima semana.</h1>
-      <p class="hero-sub">{n_obs} semanas de ventas ({n_years} años) y un modelo SARIMA que solo mira su propio pasado — sin promociones anunciadas, sin calendario de eventos, nada más que la serie histórica. Y aun así, acierta muchísimo mejor que asumir que esta semana se va a repetir como el año pasado.</p>
+      <h1 class="hero-title">Pedir de más llena el almacén de producto que nadie compra. Pedir de menos vacía las estanterías justo cuando más se vende.</h1>
+      <p class="hero-sub">Así que dejamos que cinco años de ventas contaran su propia historia — y acertaron 3 veces mejor que la intuición de repetir el año anterior.</p>
       <div class="hero-meta">
         <span class="hero-pill">Borja Mora Méndez</span>
         <span class="hero-pill">Python · statsmodels (SARIMA)</span>
