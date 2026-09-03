@@ -1,0 +1,358 @@
+/* ============================================================
+   Streamlit Case Study — sistema visual editorial (v1, estable
+   desde forecast-ventas-retail-app, idéntico byte a byte en los
+   4 proyectos siguientes). Ver design-system.md para el porqué de
+   cada token. Renombra el comentario de cabecera al nombre del
+   proyecto nuevo; NO toques nada más salvo que el proyecto
+   necesite un componente que de verdad no existe todavía.
+
+   Paleta: fondo cálido neutro + gama de azules-marino como único
+   acento estructural. El color nunca se usa para "decorar" texto:
+   la jerarquía se construye con tipografía, peso y espacio. Rojo y
+   verde quedan reservados en exclusiva para lo semántico
+   (negativo / positivo) — nunca para distinguir categorías.
+   ============================================================ */
+
+:root{
+  --bg:        #FBFBFB;
+  --card:      #F2F0EB;
+  --line:      #E3DFD5;
+  --ink:       #1D2638;
+  --navy-2:    #273A5F;
+  --navy-3:    #4A628E;
+  --navy-4:    #B9C5D6;
+  --text:      #2E3A4E;
+  --muted:     #6B7280;
+  --label:     #5A6270;
+
+  --positive:      #6E7F5B;
+  --positive-soft: #E8EBE0;
+  --negative:      #C2412E;
+  --negative-soft: #F5E2DE;
+
+  /* Color de apoyo — exclusivo para "esto es un escenario / una
+     simulación / un tramo de test", nunca para decorar. Se distingue
+     claramente de la gama azul (estructural) y del rojo (negativo). */
+  --support:       #B8783C;
+  --support-soft:  #F3E7D8;
+
+  --serif: Georgia, 'Times New Roman', Times, serif;
+  --sans: Arial, Helvetica, sans-serif;
+}
+
+/* ---------- Reset de chrome de Streamlit ---------- */
+#MainMenu, footer, header[data-testid="stHeader"] { visibility: hidden; height: 0; }
+div[data-testid="stToolbar"] { display: none; }
+.stApp { background: var(--bg); }
+.block-container {
+  padding-top: 1.4rem !important;
+  padding-bottom: 2rem !important;
+  max-width: 1360px !important;
+}
+section[data-testid="stSidebar"] { display: none; }
+html { scroll-behavior: smooth; }
+body, .stMarkdown, p, div, span { font-family: var(--sans); color: var(--text); }
+::selection { background: var(--navy-4); }
+
+/* ---------- Nav sticky ---------- */
+.co-nav{
+  position: sticky; top: 0; z-index: 999;
+  display:flex; align-items:center; justify-content:space-between;
+  gap: 1rem;
+  padding: .85rem 1.4rem;
+  margin: 0 -1rem 0 -1rem;
+  background: rgba(251,251,251,.9);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.co-nav-left{ display:flex; align-items:center; gap:1rem; min-width:0; }
+a.co-nav-back{
+  font-size: .74rem; font-weight: 600; color: var(--label); text-decoration: none;
+  white-space: nowrap; padding-right: 1rem; border-right: 1px solid var(--line);
+  transition: color .15s;
+}
+a.co-nav-back:hover{ color: var(--ink); }
+.co-nav-brand{
+  font-family: var(--serif); font-weight: 700; font-size: .95rem; color: var(--ink);
+  white-space: nowrap;
+}
+@media (max-width: 480px){ .co-nav-back{ padding-right:.6rem; margin-right:-.2rem; } }
+.co-nav-links{ display:flex; flex-wrap:wrap; gap: 1.1rem; }
+.co-nav-links a{
+  font-size: .74rem; font-weight: 600; letter-spacing: .03em;
+  color: var(--label); text-decoration: none; white-space: nowrap;
+  transition: color .15s;
+}
+.co-nav-links a:hover{ color: var(--ink); }
+@media (max-width: 900px){ .co-nav-links{ display:none; } }
+
+/* ---------- Tipografía general ---------- */
+.eyebrow{
+  font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--label); margin-bottom: .5rem;
+}
+.eyebrow.eyebrow-muted{ color: var(--muted); }
+h2.co-h2{
+  font-family: var(--serif); color: var(--ink); font-weight: 700;
+  font-size: clamp(1.6rem, 3.4vw, 2.3rem); line-height: 1.2; margin: 0 0 1rem 0;
+}
+h3.co-h3{
+  font-family: var(--serif); color: var(--ink); font-weight: 700;
+  font-size: clamp(1.1rem, 2.2vw, 1.4rem); line-height: 1.25; margin: 0 0 .6rem 0;
+}
+p.co-lead{ font-size: 1.02rem; line-height: 1.75; color: var(--text); max-width: 720px; }
+p.co-body{ font-size: .95rem; line-height: 1.75; color: var(--text); }
+.co-section{ padding: 3.2rem 0; scroll-margin-top: 4.5rem; }
+.co-section.tight{ padding: 2rem 0; }
+.co-divider{ height:1px; background: var(--line); margin: 0; }
+
+/* ---------- Hero — el hook debe dominar el primer viewport ---------- */
+.hero-wrap{
+  padding: 1.8rem 0 2.6rem; scroll-margin-top: 4.5rem;
+  border-bottom: 1px solid var(--line);
+}
+.hero-kicker{
+  font-size: .74rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--label); margin-bottom: 1.3rem;
+}
+.hero-title{
+  font-family: var(--serif); font-weight: 700; color: var(--ink);
+  font-size: clamp(2.9rem, 6.8vw, 5.6rem); line-height: 1.02; letter-spacing: -0.02em;
+  max-width: 1040px; margin: 0;
+}
+.hero-title em{ font-style: italic; color: var(--text); }
+.hero-sub{
+  font-size: clamp(1rem, 1.4vw, 1.1rem); color: var(--muted); max-width: 600px;
+  margin: 1.8rem 0 0; line-height: 1.6;
+}
+.hero-meta{
+  margin-top: 1.7rem; display:flex; flex-wrap:wrap; gap:.6rem;
+}
+.hero-pill{
+  background: var(--card); color: var(--ink);
+  border-radius: 100px; padding: .38rem .95rem; font-size: .77rem; font-weight: 600;
+}
+.hero-scroll-row{ text-align: center; margin-top: 2.4rem; }
+a.hero-scroll{
+  display: inline-block; font-size: .76rem; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted); text-decoration: none;
+}
+a.hero-scroll:hover{ color: var(--ink); }
+
+/* ---------- KPI tiles ---------- */
+.kpi-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 1.4rem 1.6rem; margin-top: 1rem; }
+.kpi-grid.cols-3{ grid-template-columns: repeat(3, 1fr); }
+.kpi-grid.cols-2{ grid-template-columns: repeat(2, 1fr); }
+.kpi-tile{ }
+.kpi-num{
+  font-family: var(--serif); font-weight: 700; color: var(--ink);
+  font-size: clamp(1.6rem, 3.2vw, 2.3rem); line-height: 1; font-variant-numeric: tabular-nums;
+}
+.kpi-num.pos{ color: var(--positive); }
+.kpi-num.neg{ color: var(--negative); }
+.kpi-label{ font-size: .8rem; color: var(--muted); margin-top: .4rem; line-height: 1.4; }
+@media (max-width: 760px){
+  .kpi-grid, .kpi-grid.cols-3{ grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ---------- Cards ---------- */
+.co-card{
+  background: var(--card); border-radius: 12px; padding: 1.5rem 1.7rem;
+}
+.co-card.paper{ background: var(--bg); }
+
+/* Callouts de hallazgo — una sola apariencia, sin barra lateral ni
+   fondos de color: el color solo aparece si hay una razón semántica
+   real (ver .finding .stat.pos / .neg más abajo). */
+.finding{
+  background: var(--card); border-radius: 10px;
+  padding: 1rem 1.3rem; margin: .8rem 0; font-size: .92rem; line-height: 1.65; color: var(--text);
+}
+.finding b{ color: var(--ink); }
+.finding .stat.pos{ color: var(--positive); font-weight: 700; }
+.finding .stat.neg{ color: var(--negative); font-weight: 700; }
+
+/* Pipeline — es un diagrama de referencia (el orden de los pasos),
+   no un dato. Antes usaba la misma caja rellena que las tarjetas de
+   datos y competía visualmente con ellas. Ahora es una tira ligera,
+   delimitada por dos filetes finos, con texto pequeño y en gris: se
+   lee como "así es el proceso", no como "esto también es importante". */
+.pipe-row{
+  display:flex; align-items:center; flex-wrap:wrap; gap:.5rem;
+  margin: 1.6rem 0; padding: .85rem 0;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.pipe-step{
+  font-size: .76rem; font-weight: 600; color: var(--muted);
+  letter-spacing: .01em; white-space: nowrap;
+}
+.pipe-arrow{ color: var(--line); font-size: 1rem; }
+@media (max-width: 760px){ .pipe-row{ flex-direction: column; align-items: stretch; gap:.35rem; } .pipe-arrow{ display:none; } }
+
+/* Metodología como recorrido narrativo — no como documentación */
+.story-steps{ display:flex; flex-direction:column; margin-top: 1.2rem; }
+.story-step{
+  display:flex; gap:1.3rem; padding: 1.1rem 0; border-top: 1px solid var(--line);
+}
+.story-step:last-child{ border-bottom: 1px solid var(--line); }
+.story-step .ss-num{
+  font-family: var(--serif); font-weight:700; font-size:1.05rem; color: var(--muted);
+  min-width: 28px; padding-top: .1rem;
+}
+.story-step .ss-title{
+  font-family: var(--serif); font-weight:700; font-size:1.05rem; color: var(--ink);
+  min-width: 200px; max-width: 240px;
+}
+.story-step .ss-text{ flex:1; font-size: .9rem; color: var(--text); line-height: 1.6; }
+@media (max-width: 760px){
+  .story-step{ flex-direction:column; gap:.4rem; }
+  .story-step .ss-title{ max-width:none; }
+}
+
+/* Tarjeta "la pregunta de negocio" — composición de dos columnas.
+   Con la tarjeta ocupando todo el ancho del contenedor, centrar una
+   única columna de texto dejaba huecos muertos a ambos lados. En vez
+   de eso: la pregunta (protagonista) a la izquierda, la explicación
+   (apoyo) a la derecha, separadas por una regla vertical que cumple
+   una función real — marcar el cambio de voz principal a secundaria —
+   no es decoración. */
+.question-block{
+  padding: 3rem 3.4rem; background: var(--ink); border-radius: 14px;
+  margin-top: 1.4rem;
+}
+.question-eyebrow{
+  font-size:.7rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
+  color: var(--navy-4); margin-bottom:1.6rem;
+}
+.question-grid{
+  display: grid; grid-template-columns: 1fr; gap: 3.2rem; align-items: center;
+}
+.question-grid.has-sub{ grid-template-columns: 3fr 2fr; }
+.question-text{
+  font-family: var(--serif); font-weight:700; color:#fff; line-height:1.28;
+  font-size: clamp(1.55rem, 2.6vw, 2.2rem); margin: 0;
+}
+.question-text .accent{ color: var(--navy-4); }
+.question-sub{
+  color:#AEB9C9; font-size: .93rem; line-height:1.7; margin:0;
+  padding-left: 3.2rem; border-left: 1px solid rgba(255,255,255,.16);
+}
+@media (max-width: 860px){
+  .question-block{ padding: 2.2rem 1.8rem; }
+  .question-grid, .question-grid.has-sub{ grid-template-columns: 1fr; gap: 1.6rem; }
+  .question-sub{
+    padding-left: 0; padding-top: 1.6rem;
+    border-left: none; border-top: 1px solid rgba(255,255,255,.16);
+  }
+}
+
+/* Tags / badges */
+.badge{
+  display:inline-block; font-size:.7rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  padding:.2rem .55rem; border-radius:5px; background: var(--ink); color:#fff;
+}
+.badge.outline{ background: transparent; border:1px solid var(--line); color: var(--muted); }
+
+/* Impact statement — misma lógica que la tarjeta de la pregunta de
+   negocio: la afirmación (protagonista) a un lado, la cita (apoyo) al
+   otro, separadas por una regla funcional, en vez de centrar todo el
+   bloque en un ancho fijo y dejar huecos muertos a los lados. */
+.impact-banner{
+  background: var(--ink); border-radius: 14px; padding: 2.6rem 3.4rem; margin: 1rem 0;
+}
+.impact-grid{
+  display: grid; grid-template-columns: 1fr; gap: 3.2rem; align-items: center;
+}
+.impact-grid.has-quote{ grid-template-columns: 3fr 2fr; }
+.impact-text{
+  font-family: var(--serif); font-weight:700; color:#fff; line-height:1.26;
+  font-size: clamp(1.4rem, 2.6vw, 2rem); margin:0;
+}
+.impact-text .accent-neg{ color:#E0917F; }
+.impact-text .accent-pos{ color:#A9BA97; }
+.impact-quote{
+  color:#AEB9C9; font-style: italic; font-size: .95rem; line-height:1.65; margin:0;
+  padding-left: 3.2rem; border-left: 1px solid rgba(255,255,255,.16);
+}
+@media (max-width: 860px){
+  .impact-banner{ padding: 2rem 1.8rem; }
+  .impact-grid, .impact-grid.has-quote{ grid-template-columns: 1fr; gap: 1.4rem; }
+  .impact-quote{
+    padding-left: 0; padding-top: 1.4rem;
+    border-left: none; border-top: 1px solid rgba(255,255,255,.16);
+  }
+}
+
+/* Insight numbered list */
+.insight-card{ display:flex; gap:1.2rem; padding: 1.2rem 0; border-top: 1px solid var(--line); }
+.insight-card:last-child{ border-bottom: 1px solid var(--line); }
+.insight-num{ font-family: var(--serif); font-weight:700; font-size:1.4rem; color: var(--muted); min-width: 42px; }
+.insight-body b.h{ display:block; font-family: var(--serif); font-size:1.02rem; color: var(--ink); margin-bottom:.35rem; }
+.insight-body p{ font-size:.88rem; color: var(--text); line-height:1.6; margin:0 0 .3rem 0;}
+.insight-body .so-what{ font-size:.82rem; color: var(--label); font-weight:600; font-style: italic; }
+
+/* Decision flow */
+.decision-flow{ display:grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; align-items:stretch; gap:.6rem; margin: 1rem 0 1.6rem; }
+.decision-flow .df-arrow{ display:flex; align-items:center; justify-content:center; color:var(--muted); }
+.df-box{ background:var(--card); border-radius:10px; padding:1rem .9rem; }
+.df-box .df-k{ font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:.35rem; display:block;}
+.df-box .df-v{ font-size:.85rem; color:var(--ink); line-height:1.4; font-weight:600;}
+/* Las 4 tarjetas de cada fila eran indistinguibles a simple vista —
+   había que leer la etiqueta minúscula para saber cuál era cuál. La
+   Métrica (el resultado medible, el cierre de cada fila) pasa a fondo
+   oscuro: marca claramente el punto de llegada de la historia
+   Insight→Acción→Objetivo→Métrica sin añadir un color nuevo. */
+.df-box.df-metric{ background: var(--ink); }
+.df-box.df-metric .df-k{ color: var(--navy-4); }
+.df-box.df-metric .df-v{ color: #fff; }
+@media (max-width: 900px){
+  .decision-flow{ grid-template-columns: 1fr; }
+  .decision-flow .df-arrow{ transform: rotate(90deg); padding:.2rem 0;}
+}
+
+/* Limitations — ritmo vertical generoso: cada bullet es una idea
+   independiente y necesita su propio espacio para leerse como tal,
+   no como un bloque de texto compacto. */
+.limit-col-title{
+  font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  margin-bottom:1.3rem; padding-bottom:.7rem; color: var(--label);
+  border-bottom: 1px solid var(--line);
+}
+ul.limit-list{ margin:0; padding-left: 1.2rem; }
+ul.limit-list li{ font-size:.9rem; color:var(--text); line-height:1.65; margin-bottom:1rem; }
+ul.limit-list li::marker{ color: var(--muted); }
+ul.limit-list li:last-child{ margin-bottom:0; }
+.limit-note{ margin-top:2.2rem; padding-top:1.8rem; border-top:1px solid var(--line); }
+
+/* ---------- Footer minimalista ---------- */
+.co-footer-mini{
+  display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap: 1rem;
+  padding: 2.2rem 0; border-top: 1px solid var(--line); margin-top: 2.5rem;
+}
+.co-footer-mini .ff-name{ font-size: .82rem; color: var(--muted); }
+.co-footer-mini .ff-cta{
+  justify-self: center; background: var(--ink); color:#fff !important; text-decoration:none;
+  font-size: .85rem; font-weight: 600; padding: .65rem 1.5rem; border-radius: 8px; white-space: nowrap;
+}
+.co-footer-mini .ff-links{ justify-self: end; display:flex; gap: 1.1rem; font-size: .82rem; }
+.co-footer-mini .ff-links a{ color: var(--muted); text-decoration:none; }
+.co-footer-mini .ff-links a:hover{ color: var(--ink); }
+@media (max-width: 640px){
+  .co-footer-mini{ grid-template-columns: 1fr; text-align:center; }
+  .co-footer-mini .ff-links{ justify-self: center; }
+}
+
+/* Streamlit widget tweaks to match editorial feel */
+div[data-testid="stSlider"] label, div[data-testid="stCheckbox"] label{ font-size: .85rem !important; color: var(--text) !important; }
+div[data-testid="stMetric"]{ background: var(--card); border-radius: 10px; padding: .9rem 1.1rem; }
+div[data-testid="stMetricLabel"]{ color: var(--muted) !important; }
+.stButton>button, .stDownloadButton>button, .stLinkButton>a{
+  background: var(--ink) !important; color:#fff !important; border-radius: 8px !important;
+  border: none !important; font-weight:600 !important;
+}
+.stTabs [data-baseweb="tab"]{ font-size:.85rem; font-weight:600; }
+hr{ border-color: var(--line) !important; }
+
+@media (max-width: 760px){
+  .decision-flow{ grid-template-columns: 1fr; }
+  .co-section{ padding: 2.2rem 0; }
+}

@@ -1,0 +1,17 @@
+{
+  "order": [
+    0,
+    1,
+    1
+  ],
+  "seasonal_order": [
+    0,
+    1,
+    1,
+    52
+  ],
+  "future_horizon": 20,
+  "aic_final": 3107.89185203243,
+  "bic_final": 3116.9831657966074,
+  "last_date": "2024-12-22"
+}

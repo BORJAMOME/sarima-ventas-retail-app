@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Serie original",
+    "adf_stat": -1.2482029284549188,
+    "p_value": 0.652524183035746,
+    "is_stationary": false
+  },
+  {
+    "name": "Serie diferenciada (d=1)",
+    "adf_stat": -14.889456833653627,
+    "p_value": 1.5653104343904143e-27,
+    "is_stationary": true
+  }
+]
