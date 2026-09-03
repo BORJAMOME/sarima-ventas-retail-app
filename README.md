@@ -14,7 +14,7 @@ sigue por los datos, y termina dejándote explorar tú mismo el forecast de las 
 
 ## Ver la app
 
-🔗 **Pendiente de desplegar en Streamlit Cloud**
+🔗 **[Abrir la app](https://sarima-ventas-retail.streamlit.app/)**
 
 ## De qué trata, en dos frases
 
