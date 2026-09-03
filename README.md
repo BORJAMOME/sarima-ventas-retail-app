@@ -2,11 +2,11 @@
 
 **Pedir de más llena el almacén de producto que nadie compra. Pedir de menos vacía las estanterías justo cuando más se vende.**
 
-Así que dejamos que cinco años de ventas contaran su propia historia — y acertaron 3
-veces mejor que la intuición de repetir el año anterior. Una aplicación interactiva
-que recorre, paso a paso, cómo se construyó un modelo de previsión de ventas que no
-necesita ninguna señal externa — ni promociones, ni festivos, ni eventos — para
-anticipar la demanda semanal con un error medio del 2,21%.
+Así que dejé que cinco años de ventas contaran su propia historia: acertaron 3 veces
+mejor que la intuición de repetir el año anterior. Una aplicación interactiva que
+recorre, paso a paso, cómo construí un modelo de previsión de ventas que no necesita
+ninguna señal externa —ni promociones, ni festivos, ni eventos— para anticipar la
+demanda semanal con un error medio del 2,21%.
 
 No hace falta saber nada de Machine Learning para seguirla: empieza por el problema,
 sigue por los datos, y termina dejándote explorar tú mismo el forecast de las próximas
@@ -19,8 +19,8 @@ sigue por los datos, y termina dejándote explorar tú mismo el forecast de las 
 ## De qué trata, en dos frases
 
 Una cadena retail necesita saber cuánto va a vender cada semana para planificar
-inventario y personal. Se entrenó un modelo **SARIMA(0,1,1)(0,1,1,52)** sobre 208
-semanas de histórico y se evaluó sobre 52 semanas nunca vistas.
+inventario y personal. Entrené un modelo **SARIMA(0,1,1)(0,1,1,52)** sobre 208 semanas
+de histórico y lo evalué sobre 52 semanas nunca vistas.
 
 **El resultado:** un error medio (MAPE) del **2,21%**, un 73,7% menos que asumir que
 la semana se repite igual que el año anterior.
