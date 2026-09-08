@@ -65,4 +65,4 @@ en [Data Analytics Portfolio](https://github.com/BORJAMOME/Data-Analytics-Portfo
 
 ---
 
-**Autor:** Borja Mora Méndez · [LinkedIn](https://www.linkedin.com/in/borja-mora-mendez/) · [borja.mora.mendez@gmail.com](mailto:borja.mora.mendez@gmail.com)
+**Autor:** Borja Mora Méndez · [LinkedIn](https://www.linkedin.com/in/borjamoramendez/) · [borja.mora.mendez@gmail.com](mailto:borja.mora.mendez@gmail.com)
