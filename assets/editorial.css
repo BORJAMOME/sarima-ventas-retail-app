@@ -1,0 +1,425 @@
+/* ==========================================================================
+   EDITORIAL SYSTEM v1 — composición editorial para case studies de ML en Streamlit
+   --------------------------------------------------------------------------
+   Sistema GENÉRICO y reutilizable: no contiene contenido ni identidad de
+   proyecto. La identidad (paleta, familias tipográficas) vive en style.css y
+   este archivo solo consume esos tokens:
+       --bg --ink --text --muted --label --line --card
+       --navy-2 --navy-3 --navy-4 --positive --negative --serif --sans
+   Para reutilizarlo en otro proyecto: copiar editorial.css + components/editorial.py
+   y definir esos tokens en su propio style.css.
+
+   ARQUITECTURA
+   El contenedor principal de Streamlit se convierte en UNA rejilla de pistas
+   nombradas. Cada bloque se coloca en un NIVEL según su función narrativa:
+
+     FULL     100 % del lienzo        bandas de alto impacto (full bleed)
+     WIDE     --wide-width (1360px)   figuras protagonistas, comparativas
+     STORY    --story-width (960px)   eje de la narración = READING + ASIDE
+     READING  --reading-width (672px) prosa (60-75 caracteres por línea)
+     ASIDE    --aside-width (240px)   notas al margen, detalle técnico
+
+   READING y ASIDE no son pistas: viven dentro de STORY (`.ed-passage`).
+   Sin `:has()` el sistema degrada a una sola columna STORY (sigue legible).
+   ========================================================================== */
+
+:root{
+  /* ---------- LAYOUT WIDTHS ---------- */
+  --canvas-width:  100vw;
+  --wide-width:    85rem;    /* 1360px */
+  --story-width:   60rem;    /*  960px = reading + aside-gap + aside */
+  --reading-width: 42rem;    /*  672px */
+  --aside-width:   15rem;    /*  240px */
+  --aside-gap:      3rem;    /* 42 + 3 + 15 = 60 = --story-width */
+
+  /* ---------- GRID ---------- */
+  --grid-columns: 12;                                  /* 8 en tablet, 4 en móvil (ver @media) */
+  --grid-gap:     clamp(1rem, 2.4vw, 2rem);
+  --page-margin:  clamp(1.25rem, 5vw, 3.5rem);
+  --wing:         calc((var(--wide-width) - var(--story-width)) / 2);
+
+  /* ---------- SPACING (el espacio comunica relación o cambio de idea) ---------- */
+  --space-xs:  .5rem;                                        /*   8 px  micro            */
+  --space-sm:  1rem;                                         /*  16 px  micro            */
+  --space-md:  clamp(1.5rem, 1.1rem + 1.4vw, 2.5rem);        /* 24-40   entre componentes */
+  --space-lg:  clamp(3.5rem, 2.4rem + 3.6vw, 6rem);          /* 56-96   entre secciones   */
+  --space-xl:  clamp(6rem, 3.8rem + 6.4vw, 10rem);           /* 96-160  transición narrativa */
+  --space-2xl: clamp(10rem, 6.4rem + 10vw, 15rem);           /* 160-240 gran transición   */
+  --space-3xl: clamp(13rem, 8rem + 14vw, 20rem);             /* 208-320 cierre            */
+
+  /* ---------- TYPOGRAPHY (escala editorial, no solo «h1-h6») ---------- */
+  --headline:      clamp(2.3rem, 1rem + 4.2vw, 4.4rem);      /* el hook del lede          */
+  --section-title: clamp(1.9rem, 1.1rem + 2.4vw, 3.2rem);    /* apertura de cada beat     */
+  --subsection:    clamp(1.3rem, 1.05rem + .9vw, 1.7rem);    /* pregunta que abre evidencia */
+  --deck:          clamp(1.15rem, 1rem + .55vw, 1.4rem);     /* resumen bajo el titular   */
+  --body:          clamp(1.06rem, 1rem + .25vw, 1.2rem);     /* prosa                     */
+  --caption:       .86rem;                                   /* pies, notas al margen     */
+  --metadata:      .72rem;                                   /* kicker, FIG., fuente      */
+  --lh-tight: 1.08;  --lh-title: 1.14;  --lh-body: 1.65;
+}
+
+/* Los spans dentro de titulares heredan su familia (la identidad fuerza sans en `span`) */
+.ed-headline *, .ed-section-title *, .ed-band-lead *, .ed-col-title *, .ed-step-title *, .ed-metric-value *{ font-family: inherit; }
+
+/* ---------- Chrome de Streamlit fuera ---------- */
+#MainMenu, footer, header[data-testid="stHeader"]{ visibility: hidden; height: 0; }
+div[data-testid="stToolbar"], section[data-testid="stSidebar"]{ display: none; }
+
+html{ scroll-behavior: smooth; }
+.stMainBlockContainer{ padding: 0 !important; max-width: none !important; }
+
+/* ==========================================================================
+   LA REJILLA
+   ========================================================================== */
+.stMainBlockContainer > [data-testid="stVerticalBlock"]{
+  display: grid; row-gap: 0; column-gap: 0; align-items: start;
+  grid-template-columns:
+    [full-start]  minmax(var(--page-margin), 1fr)
+    [wide-start]  minmax(0, var(--wing))
+    [story-start] min(var(--story-width), calc(100% - 2 * var(--page-margin)))
+    [story-end]   minmax(0, var(--wing))
+    [wide-end]    minmax(var(--page-margin), 1fr)
+    [full-end];
+}
+/* Por defecto, todo va en STORY: si el nivel no está declarado, sigue siendo legible */
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > *{
+  grid-column: story; min-width: 0; margin-top: var(--space-md);
+}
+
+/* Nivel por función narrativa: marcador en los bloques HTML… */
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-full){ grid-column: full; }
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-wide){ grid-column: wide; }
+/* …y clave de `st.container(key="ed-<nivel>-<nombre>")` en los contenedores */
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:has(> [class*="st-key-ed-full-"]){ grid-column: full; }
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:has(> [class*="st-key-ed-wide-"]){ grid-column: wide; }
+
+/* Una figura FULL BLEED llega hasta el margen de página (no se detiene en el ancho wide) */
+[class*="st-key-ed-full-"]{ padding-inline: var(--page-margin); }
+
+/* Los contenedores con clave gestionan su espacio interno con márgenes, no con el gap de 1rem */
+[class*="st-key-ed-"]{ gap: 0 !important; }
+[class*="st-key-ed-"] > [data-testid="stElementContainer"]{ margin-top: var(--space-sm); }
+[class*="st-key-ed-"] > [data-testid="stElementContainer"]:first-child{ margin-top: 0; }
+
+/* ==========================================================================
+   RITMO VERTICAL — el hueco depende de la relación entre bloques
+   ========================================================================== */
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-beat){ margin-top: var(--space-xl); }
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-beat--major){ margin-top: var(--space-2xl); }
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-beat--minor){ margin-top: var(--space-lg); }
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-lede){ margin-top: 0; }
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-band){ margin-top: var(--space-xl); }
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-colophon){ margin-top: var(--space-3xl); }
+/* Utilidades invisibles (enlace de salto, iframe del scroll de anclas): no ocupan espacio */
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-skip),
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(iframe){ margin-top: 0; height: 0; overflow: hidden; }
+/* Lo que pertenece a lo anterior se acerca */
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-tight){ margin-top: var(--space-sm); }
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:has(> [class*="st-key-ed-"]){ margin-top: var(--space-md); }
+
+/* ==========================================================================
+   TIPOGRAFÍA BASE
+   ========================================================================== */
+.ed-kicker, .ed-metadata, .ed-fig-no, .ed-source, .ed-beat-kicker, .ed-aside-label{
+  font-family: var(--sans); font-size: var(--metadata); font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase; line-height: 1.5; color: var(--label); margin: 0;
+}
+.ed-p, .ed-prose p, .ed-insight, .ed-deck{ font-family: var(--sans); }
+.ed-prose{ max-width: var(--reading-width); }
+.ed-prose p, .ed-p{
+  font-size: var(--body); line-height: var(--lh-body); color: var(--text); margin: 0;
+}
+.ed-prose p + p{ margin-top: var(--space-sm); }
+/* Palabras clave (regla del 10 %): negrita en tinta, sin color */
+.ed-prose b, .ed-p b, .ed-insight b, .ed-deck b, .ed-cols b, .ed-steps b, .ed-list b, .ed-note b, .ed-aside b{
+  font-weight: 700; color: var(--ink);
+}
+
+/* ==========================================================================
+   SKIP LINK + TOPBAR (FULL, pegajosa)
+   ========================================================================== */
+.ed-skip{
+  position: absolute; left: -9999px; top: 0; z-index: 200; background: var(--ink); color: #fff;
+  padding: .6rem 1rem; font-size: .85rem; text-decoration: none;
+}
+.ed-skip:focus{ left: var(--page-margin); }
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-topbar){
+  position: sticky; top: 0; z-index: 90; grid-column: full; margin-top: 0;
+}
+.ed-topbar{
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.ed-topbar-inner{
+  width: min(var(--wide-width), calc(100% - 2 * var(--page-margin))); margin-inline: auto;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+  padding-block: .8rem;
+}
+.ed-topbar-left{ display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+.ed-topbar a{ color: var(--label); text-decoration: none; font-size: .78rem; font-weight: 600; white-space: nowrap; }
+.ed-topbar a:hover, .ed-topbar a:focus-visible{ color: var(--ink); }
+.ed-back{ padding-right: var(--space-sm); border-right: 1px solid var(--line); }
+.ed-brand{
+  font-family: var(--serif); font-weight: 700; font-size: .95rem; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.ed-topbar-links{ display: flex; gap: 1.1rem; }
+@media (max-width: 1240px){ .ed-topbar-links{ display: none; } }
+.ed-topbar-links a{ letter-spacing: .03em; }
+a:focus-visible, summary:focus-visible, button:focus-visible{ outline: 2px solid var(--navy-3); outline-offset: 3px; }
+
+/* ==========================================================================
+   LEDE — el comienzo de un reportaje: KICKER → HEADLINE → DECK → METADATA
+   ========================================================================== */
+.ed-lede{ padding-top: var(--space-lg); }
+.ed-lede .ed-kicker{ margin-bottom: var(--space-md); }
+h1.ed-headline{
+  font-family: var(--serif); font-weight: 700; color: var(--ink);
+  font-size: var(--headline); line-height: var(--lh-tight); letter-spacing: -.02em;
+  margin: 0; padding: 0; max-width: 24em; text-wrap: balance;
+}
+h1.ed-headline em{ font-style: italic; color: var(--text); }
+.ed-lede-foot{
+  display: grid; grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
+  column-gap: var(--grid-gap); row-gap: var(--space-md); margin-top: calc(var(--space-lg) * .7); align-items: end;
+}
+.ed-lede-foot .ed-deck{ grid-column: 1 / span 7; }
+.ed-lede-foot .ed-meta{ grid-column: 9 / span 4; }
+.ed-deck{
+  font-size: var(--deck); line-height: 1.55; color: var(--muted); margin: 0; max-width: var(--reading-width);
+}
+.ed-deck b{ color: var(--ink); }
+/* Metadata editorial: información de contexto, no badges */
+.ed-meta{ margin: 0; display: grid; gap: .55rem; }
+.ed-meta div{ display: grid; grid-template-columns: 7.6rem minmax(0, 1fr); column-gap: var(--space-sm); align-items: baseline; }
+.ed-meta dt{ font-size: var(--metadata); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--label); }
+.ed-meta dd{ margin: 0; font-size: var(--caption); line-height: 1.45; color: var(--text); }
+
+/* ==========================================================================
+   BEAT — apertura de un momento narrativo (STORY)
+   ========================================================================== */
+.ed-beat, .ed-lede{ scroll-margin-top: 4.5rem; }
+.ed-beat{ border-top: 1px solid var(--ink); padding-top: var(--space-sm); }
+.ed-beat-kicker{ display: flex; gap: var(--space-sm); align-items: baseline; }
+.ed-beat-no{ font-family: var(--serif); font-size: 1.05rem; letter-spacing: 0; color: var(--ink); }
+h2.ed-section-title{
+  font-family: var(--serif); font-weight: 700; color: var(--ink);
+  font-size: var(--section-title); line-height: var(--lh-title); letter-spacing: -.01em;
+  margin: var(--space-md) 0 0; padding: 0; text-wrap: balance;
+}
+.ed-beat .ed-deck{ margin-top: var(--space-md); font-size: calc(var(--body) * 1.08); color: var(--text); }
+.ed-beat .ed-deck + .ed-deck{ margin-top: var(--space-sm); }
+
+/* Pregunta que abre una evidencia (subsección) */
+h3.ed-subhead{
+  font-family: var(--serif); font-weight: 700; color: var(--ink);
+  font-size: var(--subsection); line-height: 1.25; margin: 0; padding: 0; max-width: 36ch; text-wrap: balance;
+}
+.stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-subhead){ margin-top: var(--space-lg); }
+[class*="st-key-ed-"] .ed-subhead{ margin-bottom: var(--space-xs); }
+
+/* ==========================================================================
+   PASSAGE — prosa (READING) con notas al margen (ASIDE), sobre el eje STORY
+   ========================================================================== */
+.ed-passage{
+  display: grid; grid-template-columns: minmax(0, var(--reading-width)) minmax(0, var(--aside-width));
+  column-gap: var(--aside-gap); align-items: start;
+}
+.ed-aside{
+  font-size: var(--caption); line-height: 1.55; color: var(--muted);
+  border-top: 1px solid var(--line); padding-top: .65rem; margin-top: .55rem;
+}
+.ed-aside-label{ display: block; margin-bottom: .3rem; }
+.ed-aside code, .ed-note code{ font-size: .92em; background: none; color: var(--text); padding: 0; }
+
+/* INSIGHT — la conclusión de una evidencia. Sin caja: escala, tinta y una regla corta */
+.ed-insight{
+  font-size: calc(var(--body) * 1.06); line-height: 1.6; color: var(--ink); margin: 0; max-width: var(--reading-width);
+}
+.ed-insight::before{
+  content: ""; display: block; width: 2.5rem; height: 2px; background: var(--navy-3); margin-bottom: .85rem;
+}
+/* Nota en línea (para columnas estrechas donde no cabe un aside) */
+.ed-note{
+  font-size: var(--caption); line-height: 1.55; color: var(--muted); margin: var(--space-sm) 0 0;
+  border-top: 1px solid var(--line); padding-top: .6rem; max-width: var(--reading-width);
+}
+
+/* ==========================================================================
+   FIGURE — PREGUNTA → VISUAL → CAPTION → INSIGHT
+   ========================================================================== */
+.ed-caption{
+  display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); column-gap: var(--space-sm); row-gap: .15rem;
+  border-top: 1px solid var(--line); padding-top: .6rem; max-width: 60rem;
+}
+.ed-caption .ed-fig-no{ color: var(--ink); grid-row: 1 / span 2; }
+.ed-caption .ed-fig-text{ font-size: var(--caption); line-height: 1.5; color: var(--text); margin: 0; }
+.ed-caption .ed-source{ font-weight: 600; letter-spacing: .08em; color: var(--muted); }
+
+/* SPLIT — composición asimétrica en rejilla de 12 columnas (contenedor con clave `ed-wide-split-A-B-…`) */
+[class*="st-key-ed-wide-split-"] [data-testid="stHorizontalBlock"]{
+  display: grid !important; grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
+  column-gap: var(--grid-gap); align-items: start; row-gap: var(--space-md);
+}
+[class*="st-key-ed-wide-split-"] [data-testid="stColumn"]{ min-width: 0; width: auto !important; flex: none !important; }
+[class*="st-key-ed-wide-split-"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"]{ gap: 0; }
+[class*="st-key-ed-wide-split-"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]{ margin-top: var(--space-sm); }
+[class*="st-key-ed-wide-split-"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:first-child{ margin-top: 0; }
+[class*="st-key-ed-wide-split-4-8-"] [data-testid="stColumn"]:nth-child(1), [class*="st-key-ed-wide-split-8-4-"] [data-testid="stColumn"]:nth-child(2){ grid-column: span 4; }
+[class*="st-key-ed-wide-split-4-8-"] [data-testid="stColumn"]:nth-child(2), [class*="st-key-ed-wide-split-8-4-"] [data-testid="stColumn"]:nth-child(1){ grid-column: span 8; }
+[class*="st-key-ed-wide-split-5-7-"] [data-testid="stColumn"]:nth-child(1), [class*="st-key-ed-wide-split-7-5-"] [data-testid="stColumn"]:nth-child(2){ grid-column: span 5; }
+[class*="st-key-ed-wide-split-5-7-"] [data-testid="stColumn"]:nth-child(2), [class*="st-key-ed-wide-split-7-5-"] [data-testid="stColumn"]:nth-child(1){ grid-column: span 7; }
+[class*="st-key-ed-wide-split-6-6-"] [data-testid="stColumn"]{ grid-column: span 6; }
+[class*="st-key-ed-wide-split-4-4-4-"] [data-testid="stColumn"]{ grid-column: span 4; }
+
+/* ==========================================================================
+   MÉTRICA → RESULTADO → INTERPRETACIÓN (nunca una batería de KPI)
+   ========================================================================== */
+.ed-metrics{ border-top: 1px solid var(--line); }
+.ed-metric{
+  display: grid; grid-template-columns: minmax(0, 11.5rem) minmax(0, 6.5rem) minmax(0, 1fr);
+  column-gap: var(--grid-gap); align-items: baseline; padding-block: var(--space-sm);
+  border-bottom: 1px solid var(--line);
+}
+.ed-metric-name{ font-size: var(--metadata); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--label); margin: 0; }
+.ed-metric-value{ font-family: var(--serif); font-weight: 700; font-size: clamp(1.7rem, 1.3rem + 1.4vw, 2.4rem); line-height: 1; color: var(--ink); margin: 0; font-variant-numeric: tabular-nums; }
+.ed-metric-text{ font-size: var(--caption); line-height: 1.55; color: var(--text); margin: 0; }
+.ed-metric-text b{ color: var(--ink); }
+
+.ed-metrics--word .ed-metric{ grid-template-columns: minmax(0, 10rem) minmax(0, 9rem) minmax(0, 1fr); }
+.ed-metrics--word .ed-metric-value{ font-size: clamp(1.15rem, 1rem + .6vw, 1.45rem); line-height: 1.2; }
+
+/* PROCEDENCIA y RUTA — información editorial discreta */
+.ed-provenance{ border-top: 1px solid var(--line); padding-top: var(--space-sm); grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--grid-gap); row-gap: .55rem; }
+.ed-provenance div{ grid-template-columns: 8.6rem minmax(0, 1fr); }
+.ed-route{ display: flex; flex-wrap: wrap; gap: .35rem .7rem; margin: 0; font-size: var(--caption); font-weight: 600; color: var(--muted); }
+.ed-route-sep{ color: var(--line); }
+
+/* ==========================================================================
+   COLS — columnas con regla superior (modelos, prioridades, límites). Sin cajas
+   ========================================================================== */
+.ed-cols{ display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); column-gap: var(--grid-gap); row-gap: var(--space-md); }
+.ed-col{ border-top: 2px solid var(--ink); padding-top: var(--space-sm); }
+.ed-col-tag{ font-size: var(--metadata); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 .5rem; }
+.ed-col-title{ font-family: var(--serif); font-weight: 700; font-size: var(--subsection); line-height: 1.2; color: var(--ink); margin: 0 0 .6rem; }
+.ed-col-text{ font-size: calc(var(--body) * .94); line-height: 1.6; color: var(--text); margin: 0; }
+.ed-list{ margin: 0; padding-left: 1.1rem; }
+.ed-list li{ font-size: calc(var(--body) * .94); line-height: 1.6; color: var(--text); margin-bottom: .7rem; }
+.ed-list li::marker{ color: var(--muted); }
+
+
+/* CARDS — solo para entidades paralelas cuyo color las identifica (segmentos, lo que sí/no puede hacer).
+   Barra superior + fondo teñido al 7 % en el color de la entidad; el cuerpo va en tinta (contraste 10:1). */
+.ed-cards{ display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: var(--grid-gap); align-items: stretch; }
+.ed-card{
+  --seg: var(--ink);
+  background: color-mix(in srgb, var(--seg) 7%, var(--bg));
+  border-top: 4px solid var(--seg); border-radius: 10px;
+  padding: var(--space-md) clamp(1.1rem, .8rem + 1vw, 1.7rem) clamp(1.25rem, 1rem + 1vw, 1.9rem);
+}
+.ed-card-tag{ font-size: var(--metadata); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--label); margin: 0 0 .5rem; }
+.ed-card-title{ font-family: var(--serif); font-weight: 700; font-size: var(--subsection); line-height: 1.2; color: var(--seg); margin: 0; }
+.ed-card-stat{ display: flex; align-items: baseline; flex-wrap: wrap; gap: .15rem .7rem; margin: .8rem 0 .9rem; }
+.ed-card-stat-num{ font-family: var(--serif); font-weight: 700; font-size: clamp(2rem, 1.5rem + 1.6vw, 2.8rem); line-height: 1; color: var(--seg); font-variant-numeric: tabular-nums; }
+.ed-card-stat-label{ font-size: var(--caption); font-weight: 600; color: var(--label); }
+.ed-card-text{ font-size: calc(var(--body) * .94); line-height: 1.6; color: var(--text); margin: .8rem 0 0; }
+.ed-card-stat + .ed-card-text{ margin-top: 0; }
+.ed-card-list{ margin: .8rem 0 0; padding-left: 1.1rem; }
+.ed-card-list li{ font-size: calc(var(--body) * .94); line-height: 1.6; color: var(--text); margin-bottom: .65rem; }
+.ed-card-list li::marker{ color: var(--seg); }
+.ed-card b{ color: var(--ink); font-weight: 700; }
+
+/* STEPS — el método como recorrido numerado */
+.ed-steps{ border-top: 1px solid var(--ink); }
+.ed-step{
+  display: grid; grid-template-columns: 3.2rem minmax(0, 15rem) minmax(0, 1fr);
+  column-gap: var(--grid-gap); row-gap: .4rem; padding-block: var(--space-md); border-bottom: 1px solid var(--line);
+}
+.ed-step-no{ font-family: var(--serif); font-weight: 700; font-size: 1.1rem; color: var(--muted); margin: 0; }
+.ed-step-title{ font-family: var(--serif); font-weight: 700; font-size: 1.2rem; line-height: 1.25; color: var(--ink); margin: 0; }
+.ed-step-text{ font-size: calc(var(--body) * .94); line-height: 1.6; color: var(--text); margin: 0; }
+
+/* ==========================================================================
+   FULL BLEED — momentos de alto impacto (dos en toda la pieza)
+   ========================================================================== */
+.ed-band{ background: var(--ink); color: #fff; padding-block: var(--space-lg); }
+.ed-band-inner{
+  width: min(var(--wide-width), calc(100% - 2 * var(--page-margin))); margin-inline: auto;
+  display: grid; grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
+  column-gap: var(--grid-gap); row-gap: var(--space-md); align-items: end;
+}
+.ed-band .ed-band-eyebrow{ grid-column: 1 / -1; color: var(--navy-4); margin: 0; }
+.ed-band .ed-band-lead{
+  grid-column: 1 / span 7; margin: 0; color: #fff; font-family: var(--serif); font-weight: 700;
+  font-size: clamp(1.7rem, 1.1rem + 2.4vw, 3rem); line-height: 1.16; letter-spacing: -.01em; text-wrap: balance;
+}
+.ed-band .ed-band-lead .accent{ color: var(--navy-4); }
+.ed-band .ed-band-lead .pos{ color: #B5C7A0; }
+.ed-band .ed-band-lead .neg{ color: #E8907F; }
+.ed-band .ed-band-side{ grid-column: 9 / span 4; margin: 0; color: #AEB9C9; font-size: var(--caption); line-height: 1.65; }
+.ed-band .ed-band-side.quote{ font-style: italic; font-size: calc(var(--body) * .95); }
+
+/* ==========================================================================
+   Widgets de Streamlit dentro de la narración
+   ========================================================================== */
+[data-testid="stExpander"]{ border: none !important; border-top: 1px solid var(--line) !important; border-radius: 0 !important; background: none !important; }
+[data-testid="stExpander"] summary{ padding-left: 0; padding-right: 0; }
+[data-testid="stExpander"] summary p{ font-size: var(--caption); font-weight: 600; color: var(--label); }
+[data-testid="stExpander"] .ed-prose p{ font-size: var(--caption); }
+div[data-testid="stSlider"] label, div[data-testid="stSelectbox"] label{ font-size: .86rem !important; color: var(--text) !important; }
+[data-testid="stDataFrame"]{ max-width: 100%; }
+
+/* ==========================================================================
+   COLOFÓN
+   ========================================================================== */
+.ed-colophon{ border-top: 1px solid var(--ink); padding-top: var(--space-md); padding-bottom: var(--space-lg);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-md); row-gap: var(--space-sm); align-items: baseline; }
+.ed-colophon .ed-colophon-name{ font-family: var(--serif); font-weight: 700; color: var(--ink); font-size: 1.05rem; margin: 0; }
+.ed-colophon nav{ display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; }
+.ed-colophon a{ color: var(--label); font-size: .85rem; font-weight: 600; text-decoration: none; }
+.ed-colophon a:hover, .ed-colophon a:focus-visible{ color: var(--ink); }
+
+/* ==========================================================================
+   RESPONSIVE — mismo sistema en 12 / 8 / 4 columnas
+   ========================================================================== */
+@media (max-width: 1080px){                    /* la pista STORY ya no alberga READING + ASIDE */
+  :root{ --grid-columns: 8; }
+  .ed-passage{ grid-template-columns: minmax(0, var(--reading-width)); }
+  .ed-passage .ed-aside{ max-width: var(--reading-width); margin-top: var(--space-sm); }
+  .ed-lede-foot .ed-deck{ grid-column: 1 / -1; }
+  .ed-lede-foot .ed-meta{ grid-column: 1 / -1; max-width: var(--reading-width); }
+  .ed-band .ed-band-lead, .ed-band .ed-band-side{ grid-column: 1 / -1; }
+  /* SPLIT: en tablet cada columna recupera el ancho completo */
+  [class*="st-key-ed-wide-split-"] [data-testid="stColumn"]{ grid-column: 1 / -1 !important; }
+  /* Cualquier grupo de columnas dentro de una figura (matrices, importancias…) apila igual:
+     por defecto Streamlit solo apila por debajo de 640px y a 768px dejaba cada gráfico en 184px */
+  [class*="st-key-ed-"] [data-testid="stHorizontalBlock"]{ flex-wrap: wrap !important; }
+  [class*="st-key-ed-"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]{ flex: 1 1 100% !important; min-width: 100% !important; }
+  .ed-cols, .ed-cards{ --cols: 1 !important; }
+  .ed-provenance{ grid-template-columns: minmax(0, 1fr); }
+  .ed-step{ grid-template-columns: 3.2rem minmax(0, 1fr); }
+  .ed-step-text{ grid-column: 2; }
+  .ed-topbar-links{ display: none; }
+}
+@media (min-width: 1081px) and (max-width: 1280px){        /* 4–5 tarjetas de texto largo no caben en una fila */
+  .ed-cards--4{ --cols: 2 !important; }
+  .ed-cards--5, .ed-cols--5{ --cols: 3 !important; }
+}
+@media (max-width: 640px){
+  :root{ --grid-columns: 4; }
+  .ed-metric{ grid-template-columns: minmax(0, 1fr) auto; row-gap: .25rem; }
+  .ed-metric-text{ grid-column: 1 / -1; }
+  .ed-meta div{ grid-template-columns: 6.4rem minmax(0, 1fr); }
+  .ed-caption{ grid-template-columns: minmax(0, 1fr); }
+  .ed-caption .ed-fig-no{ grid-row: auto; }
+  .ed-colophon{ grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ==========================================================================
+   MOTION — el sistema no depende de animaciones; sin ellas todo sigue igual
+   ========================================================================== */
+a, summary{ transition: color .15s; }
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior: auto; }
+  *, *::before, *::after{ transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}

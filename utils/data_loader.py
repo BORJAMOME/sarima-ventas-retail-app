@@ -27,4 +27,6 @@ def load_csv(name: str) -> pd.DataFrame:
 
 
 def artifacts_ready() -> bool:
-    return (ARTIFACTS / "dataset_stats.json").exists() and (ARTIFACTS / "future_forecast.csv").exists()
+    needed = ("dataset_stats.json", "future_forecast.csv", "audit_checks.json", "baselines_test.csv",
+              "residuals_clean.csv", "seasonal_by_year.csv", "interval_widths.csv")
+    return all((ARTIFACTS / name).exists() for name in needed)

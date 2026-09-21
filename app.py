@@ -1,18 +1,45 @@
 """
-SARIMA — Predicción de Ventas Semanales en Retail
-Case study interactivo en Streamlit: de la pregunta de negocio a la
-decisión, pasando por los datos, el modelo y su explicabilidad.
+SARIMA — Ventas Semanales Retail
+Reportaje digital de datos: ¿hasta dónde puede llegar una previsión de ventas usando únicamente el pasado de
+la propia serie? Del problema de negocio a la decisión, pasando por los datos, el método, la evidencia y sus límites.
+
+Narrativa (11 beats):
+  LEDE → 01 El problema → 02 Los datos → 03 ¿Qué cuentan cinco años de ventas? → 04 Del histórico a una
+  previsión → 05 ¿Puede anticipar las ventas? → 06 ¿Qué queda sin explicar? → 07 ¿Qué pasará dentro de 1, 10 o
+  20 semanas? → 08 Qué hemos aprendido → 09 ¿Qué podría hacer una empresa? → 10 Hasta dónde llega el modelo →
+  11 El futuro no se puede conocer, pero sí estimar mejor
+
+Regla de copy: primero se explica qué significa, después se pone el nombre técnico (en notas
+«Detalle técnico» o entre paréntesis).
+
+La composición vive en assets/editorial.css + components/editorial.py (sistema editorial reutilizable); aquí solo
+hay contenido y datos. Toda cifra del texto sale de los artefactos de model/artifacts (train.py y export_audit.py)
+o se calcula de ellos: nada está escrito a mano. La app no depende de statsmodels ni de scipy en ejecución.
 
 Autor: Borja Mora Méndez
 """
+import importlib
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
-from components import charts, ui
+from components import charts
+from components import editorial as ed
 from utils.data_loader import artifacts_ready, load_csv, load_json
 
+# Streamlit recarga app.py al detectar cambios, pero mantiene en memoria los módulos locales ya
+# importados. Tras un despliegue que modifica components/*.py y app.py a la vez, eso deja un
+# app.py nuevo llamando a un módulo antiguo (AttributeError). Recargarlos en cada ejecución lo
+# evita; el coste es despreciable.
+importlib.reload(charts)
+importlib.reload(ed)
+
 ROOT = Path(__file__).resolve().parent
+LECTURA = "12 min"
+ACTUALIZADO = "Septiembre 2026"
+FUENTE = "Elaboración propia"
+PLOT = {"displayModeBar": False}
 
 st.set_page_config(
     page_title="SARIMA · Ventas Semanales Retail",
@@ -21,13 +48,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-with open(ROOT / "assets" / "style.css", encoding="utf-8") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+# Identidad del proyecto primero (paleta, tipografías); sistema editorial después
+ed.load_css(ROOT, "style.css", "editorial.css")
 
 if not artifacts_ready():
     st.error(
-        "Los artefactos del modelo todavía no se han generado. "
-        "Ejecuta `py -3.10 model/train.py` desde la raíz del proyecto y recarga esta página."
+        "Los artefactos del modelo todavía no se han generado. Ejecuta `py -3.10 model/train.py` y "
+        "`py -3.10 model/export_audit.py` desde la raíz del proyecto y recarga esta página."
     )
     st.stop()
 
@@ -37,419 +64,519 @@ model_summary = load_json("model_summary.json")
 adf_results = load_json("adf_results.json")
 acf_pacf = load_json("acf_pacf.json")
 metrics = load_json("metrics.json")
-residual_diag = load_json("residual_diagnostics.json")
+audit = load_json("audit_checks.json")
 
 decomp_df = load_csv("decomposition.csv")
 split_df = load_csv("series_split.csv")
 diff_df = load_csv("series_diff.csv")
-resid_df = load_csv("residuals.csv")
-test_forecast_df = load_csv("test_forecast.csv")
+test_df = load_csv("test_forecast.csv")
 future_df = load_csv("future_forecast.csv")
+baselines_df = load_csv("baselines_test.csv")
+resid_clean = load_csv("residuals_clean.csv")
+seasonal_df = load_csv("seasonal_by_year.csv")
+widths_df = load_csv("interval_widths.csv")
 
-n_obs = dataset_stats["n_obs"]
-n_years = round((split_df["date"].max() - split_df["date"].min()).days / 365, 1)
-cv_pct = dataset_stats["std_sales"] / dataset_stats["mean_sales"] * 100
+MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
+         "noviembre", "diciembre"]
+
+
+# ---------------------------------------------------------------- formato en español
+def es(value: float, decimals: int = 1) -> str:
+    """Número con coma decimal, como se escribe en español."""
+    return f"{value:.{decimals}f}".replace("-", "−").replace(".", ",")
+
+
+def sgn(value: float, decimals: int = 1) -> str:
+    return f"{value:+.{decimals}f}".replace("-", "−").replace(".", ",")
+
+
+def pct(value: float, decimals: int = 1) -> str:
+    return f"{es(value, decimals)}%"
+
+
+def eur(value: float) -> str:
+    return f"{value:,.0f}".replace(",", ".") + " €"
+
+
+def fecha(ts, year: bool = True) -> str:
+    return f"{ts.day} de {MESES[ts.month - 1]}" + (f" de {ts.year}" if year else "")
+
+
+def pvalue(p: float) -> str:
+    return "p &lt; 0,0001" if p < 0.0001 else f"p = {es(p, 2 if p >= 0.01 else 4)}"
+
+
+# ---------------------------------------------------------------- cifras del texto
+n_obs, n_train, n_test = dataset_stats["n_obs"], dataset_stats["n_train"], dataset_stats["n_test"]
+start, end = pd.Timestamp(dataset_stats["start_date"]), pd.Timestamp(dataset_stats["end_date"])
+test_start, test_end = pd.Timestamp(dataset_stats["test_start"]), pd.Timestamp(dataset_stats["test_end"])
+n_years = round(n_obs / 52)
+years_txt = {3: "tres", 4: "cuatro", 5: "cinco", 6: "seis"}.get(n_years, str(n_years))
+
 sarima_m = metrics["sarima"]
-naive_m = metrics["naive_seasonal"]
+year_ago_m = audit["baselines"]["year_ago"]
+growth_m = audit["baselines"]["year_ago_growth"]
+last_m = audit["baselines"]["last_value"]
 improv = metrics["improvement_vs_naive_pct"]
+growth_pct = (audit["growth_last_train_year"] - 1) * 100
+wins, wilcoxon_p = audit["sarima_better_weeks_vs_growth"], audit["wilcoxon_p_vs_growth"]
 
+desc = audit["descriptive"]
+yearly = {int(k): v for k, v in desc["yearly_mean"].items()}
+yoy = [v for v in desc["yearly_growth_pct"].values()]
+seas = audit["seasonal"]
+rd = audit["residuals"]
+clean = rd["clean"]
+sens = rd["sensitivity"]
+iv = audit["intervals"]
+params = {p["name"]: p for p in model_summary["params"]}
+adf_raw, adf_diff = adf_results[0], adf_results[1]
 
-def eur(value: float, sign: bool = False) -> str:
-    """Euros con separador de miles europeo — solo sobre el número aislado,
-    nunca aplicado a una frase completa (evita mezclar con comas gramaticales)."""
-    spec = f"{value:+,.0f}" if sign else f"{value:,.0f}"
-    return spec.replace(",", ".") + " €"
-
-
-ui.nav()
-ui.install_smooth_scroll()
-
-# ============================================================ HERO ==
-st.markdown(
-    f"""
-    <div id="top" class="hero-wrap">
-      <p class="hero-kicker">Machine Learning Case Study · Series Temporales</p>
-      <h1 class="hero-title">Pedir de más llena el almacén de producto que nadie compra. Pedir de menos vacía las estanterías justo cuando más se vende.</h1>
-      <p class="hero-sub">Así que dejé que cinco años de ventas contaran su propia historia: acertaron 3 veces mejor que la intuición de repetir el año anterior.</p>
-      <div class="hero-meta">
-        <span class="hero-pill">Borja Mora Méndez</span>
-        <span class="hero-pill">Python · statsmodels (SARIMA)</span>
-        <span class="hero-pill">Streamlit</span>
-        <span class="hero-pill">{n_obs} semanas de histórico</span>
-      </div>
-      <div class="hero-scroll-row">
-        <a href="#contexto" class="hero-scroll">explorar el caso &#8595;</a>
-      </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+# ============================================================ LEDE ==
+ed.skip_link("contexto")
+ed.topbar(
+    "SARIMA · Ventas Retail",
+    [("contexto", "Problema"), ("datos", "Datos"), ("metodo", "Método"), ("modelo", "Modelo"),
+     ("diagnostico", "Diagnóstico"), ("playground", "Playground"), ("resultado", "Resultado"),
+     ("decisiones", "Decisiones"), ("conclusion", "Conclusión")],
+    back_url="https://borjamora.es/",
+)
+ed.anchor_scroll()
+ed.lede(
+    kicker="Machine Learning Case Study · Series temporales",
+    headline="¿Cuánto venderás <em>la semana que viene</em>?",
+    deck=(
+        "Una cadena de supermercados necesita tomar decisiones antes de saber cuánto va a vender: cuánto pedir, "
+        "cuánto personal necesitará y cómo prepararse para los picos de demanda. "
+        f"Analicé {years_txt} años de ventas semanales para comprobar <b>hasta dónde puede llegar una previsión</b> "
+        "utilizando únicamente el pasado de la propia serie."
+    ),
+    meta=[
+        ("Autor", "Borja Mora Méndez"),
+        ("Stack", "Python · statsmodels (SARIMA) · Streamlit"),
+        ("Datos", f"{n_obs} semanas · {MESES[start.month - 1][:3]} {start.year} – {MESES[end.month - 1][:3]} {end.year}"),
+        ("Actualizado", ACTUALIZADO),
+        ("Lectura", LECTURA),
+    ],
 )
 
-# ============================================================ CONTEXTO ==
-ui.section_open("contexto")
-ui.eyebrow("Contexto")
-ui.h2("El problema")
-ui.lead(
-    "Una cadena de supermercados necesita anticipar las ventas de cada semana para "
-    "planificar inventario, personal y promociones. Comprar de más inmoviliza dinero "
-    "en almacén y genera merma; comprar de menos vacía estanterías justo cuando hay "
-    "demanda. Ambos errores cuestan dinero, y la única forma de evitarlos es tener una "
-    "estimación fiable de lo que se va a vender antes de que ocurra."
+# ============================================================ 01 · EL PROBLEMA ==
+ed.beat(
+    "contexto", "01", "Problema", "El problema",
+    deck=[
+        "Una cadena de supermercados tiene que tomar decisiones sobre lo que todavía no ha ocurrido.",
+        "Cuánto producto pedir. Cuánto personal necesitar. Cuándo prepararse para semanas de mayor demanda.",
+        "Si compra de más, puede acumular stock innecesario. Si compra de menos, puede quedarse corto cuando las "
+        "ventas suben.",
+        "La pregunta no es si podemos saber exactamente cuánto venderemos. Es <b>si podemos anticiparlo</b>.",
+    ],
 )
-ui.kpi_grid([
-    {"num": f"{n_obs}", "label": "semanas de histórico"},
-    {"num": f"{n_years}", "label": "años de operación (2020–2024)"},
-    {"num": f"±{cv_pct:.0f}%", "label": "variación semana a semana"},
-    {"num": "0", "label": "variables externas disponibles"},
-])
-st.write("")
-ui.question_block(
+ed.band(
     "La pregunta de negocio",
-    '¿Se pueden anticipar las ventas de las próximas semanas mirando '
-    '<span class="accent">solo su propio pasado</span>?',
-    "No usé encuestas, ni promociones anunciadas de antemano, ni ningún dato externo: "
-    "solo la tendencia y el patrón que ya estaba escondido en el propio histórico de ventas.",
+    '¿Podemos anticipar las ventas de las próximas semanas utilizando '
+    '<span class="accent">únicamente lo que ya ocurrió</span>?',
+    f"Para comprobarlo, trabajé con {years_txt} años de ventas semanales y reservé el último año para ver si el modelo "
+    "era capaz de predecirlo sin haberlo visto. No podemos saber exactamente lo que va a pasar, pero quizá sí "
+    "anticiparlo mejor.",
 )
-ui.section_close()
 
-# ============================================================ DATOS ==
-ui.section_open("datos")
-ui.eyebrow("Materia prima")
-ui.h2("Los datos")
-ui.lead(
-    f"Trabajé con {n_obs} observaciones semanales de ventas en euros, entre {dataset_stats['start_date']} "
-    f"y {dataset_stats['end_date']}: una sola columna, sin huecos ni duplicados. El reto no estuvo en "
-    "limpiar los datos, sino en decidir si esa única serie bastaba para predecir con precisión suficiente."
+# ============================================================ 02 · LOS DATOS ==
+ed.beat(
+    "datos", "02", "Datos", "Los datos",
+    deck=[
+        f"El punto de partida es sorprendentemente sencillo: <b>{n_obs} semanas de ventas. Una única variable.</b>",
+        f"Trabajé con las ventas semanales entre {MESES[start.month - 1]} de {start.year} y "
+        f"{MESES[end.month - 1]} de {end.year}.",
+    ],
 )
-ui.kpi_grid([
-    {"num": f"{n_obs}", "label": "semanas, frecuencia semanal"},
-    {"num": eur(dataset_stats["mean_sales"]), "label": "venta media semanal"},
-    {"num": "0", "label": "valores nulos"},
-    {"num": "1", "label": "variable objetivo: ventas (€)"},
+ed.provenance([
+    ("Dataset", "arima.xlsx"),
+    ("Observaciones", f"{n_obs} semanas (domingos), del {fecha(start)} al {fecha(end)}"),
+    ("Variable", "Ventas semanales (€)"),
+    ("Venta media", f"{eur(dataset_stats['mean_sales'])} por semana"),
+    ("Valores vacíos", "0 · sin huecos ni semanas duplicadas"),
+    ("Variables externas", "ninguna"),
+    ("Elaboración", FUENTE),
 ])
-ui.pipeline(["Ventas semanales crudas", "Test de estacionariedad (ADF)", "Diferenciación d=1, D=1",
-             "ACF / PACF", "SARIMA(0,1,1)(0,1,1,52)", "Forecast a 20 semanas"])
-ui.finding(
-    f"El rango de ventas va de {eur(dataset_stats['min_sales'])} a {eur(dataset_stats['max_sales'])} por "
-    f"semana, con una variación media del <b>±{cv_pct:.0f}%</b> de una semana a otra. No hay ninguna señal "
-    "externa registrada (promociones, festivos, climatología), así que tuve que trabajar solo con el "
-    "propio pasado de la serie."
+ed.passage(
+    "El fichero no incluye promociones, festivos, climatología, campañas ni ninguna otra variable externa. Solo el "
+    "historial de ventas.",
+    "¿Es suficiente? Ese era precisamente el reto.",
+    "Si existe una señal útil en esos cinco años —una tendencia, una estacionalidad o patrones que se repiten— "
+    "debería estar escondida dentro de la propia serie.",
 )
-ui.section_close()
 
-# ============================================================ EXPLORACIÓN ==
-ui.section_open("exploracion")
-ui.eyebrow("Antes de modelar")
-ui.h2("¿Qué me dicen los datos?")
-ui.lead(
-    "Antes de entrenar nada, me hice dos preguntas simples: ¿cómo se mueven las ventas a lo largo del "
-    "tiempo? Y si descompongo la serie, ¿aparece con claridad la estacionalidad anual que necesito para "
-    "elegir un SARIMA en vez de un ARIMA simple?"
+# ============================================================ 03 · ¿QUÉ CUENTAN CINCO AÑOS DE VENTAS? ==
+ed.beat(
+    "exploracion", "03", "Antes de modelar", "¿Qué me cuentan cinco años de ventas?",
+    deck=[
+        "Antes de construir una previsión, necesitaba saber si había algo que realmente pudiera predecirse.",
+        "Al mirar la serie completa aparecen dos señales claras: <b>las ventas crecen con el tiempo y ciertos "
+        "patrones se repiten cada año</b>. Eso importa porque una serie que simplemente sube y baja sin patrón sería "
+        "mucho más difícil de anticipar.",
+    ],
 )
-ui.h3("Evolución de las ventas — serie completa")
-st.plotly_chart(charts.full_series(split_df), use_container_width=True, config={"displayModeBar": False})
-ui.finding(
-    f"Tendencia al alza sostenida a lo largo de los {n_years} años, con oscilaciones que se repiten con "
-    "una cadencia claramente anual. Ninguna caída ni pico parece aislado del patrón general: buena señal "
-    "antes de empezar a modelar."
-)
-ui.h3("Descomposición de la serie")
-st.plotly_chart(charts.decomposition(decomp_df), use_container_width=True, config={"displayModeBar": False})
-ui.finding(
-    "La descomposición aditiva (periodo de 52 semanas) separa con nitidez una <b>tendencia</b> creciente, "
-    "una <b>estacionalidad</b> anual que se repite prácticamente igual año tras año, y un <b>residuo</b> "
-    "que oscila sin patrón visible alrededor de cero. Con esto confirmé que hacía falta un componente "
-    "estacional (SARIMA): un ARIMA simple no me habría bastado."
-)
-ui.section_close()
+ed.subhead("¿Cómo se mueven las ventas?", level="wide")
+with ed.split("serie", "8-4") as (viz, txt):
+    with viz:
+        st.plotly_chart(charts.full_series(split_df), use_container_width=True, config=PLOT)
+        ed.caption("FIG. 01", "Ventas semanales (€), de enero de 2020 a diciembre de 2024.", FUENTE)
+    with txt:
+        ed.insight(
+            f"Las ventas medias por semana pasan de {eur(yearly[min(yearly)])} en {min(yearly)} a "
+            f"{eur(yearly[max(yearly)])} en {max(yearly)}: entre un {es(min(yoy), 0)}% y un {es(max(yoy), 0)}% más "
+            f"cada año. Sobre esa tendencia, una semana típica cambia un {pct(desc['weekly_change_median_pct'])} "
+            "respecto a la anterior."
+        )
 
-# ============================================================ METODOLOGÍA ==
-ui.section_open("metodologia")
-ui.eyebrow("Cómo se llegó al modelo")
-ui.h2("El camino hasta el modelo")
-ui.lead(
-    "En series temporales no se puede barajar el tiempo. Antes de nada, tuve que comprobar si la serie "
-    "se podía modelar tal cual o había que transformarla, respetando siempre el orden en que ocurrieron "
-    "las cosas."
+ed.subhead("Separar lo que ocurre", level="wide")
+with ed.figure("componentes"):
+    ed.cols([
+        {"tag": "Tendencia", "title": "Hacia dónde van las ventas", "text": "Cómo evolucionan las ventas a largo plazo."},
+        {"tag": "Estacionalidad", "title": "Lo que se repite", "text": "Qué patrones se repiten aproximadamente cada 52 semanas."},
+        {"tag": "Residuo", "title": "Lo que queda", "text": "Lo que sobra después de explicar las dos anteriores."},
+    ], count=3)
+with ed.figure("descomposicion"):
+    st.plotly_chart(charts.decomposition(decomp_df), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 02", "Descomposición aditiva de la serie con un periodo de 52 semanas.", FUENTE)
+ed.insight("La señal más interesante está aquí: <b>la estacionalidad anual</b>. La pregunta es si se repite de verdad "
+           "o si es un promedio que parece un patrón.")
+
+ed.subhead("¿Se repite de verdad cada año?", level="wide")
+with ed.split("estacionalidad", "8-4") as (viz, txt):
+    with viz:
+        st.plotly_chart(charts.seasonal_by_year(seasonal_df, seas["full_years"]), use_container_width=True, config=PLOT)
+        ed.caption("FIG. 03", "Patrón de cada año una vez quitada la tendencia, alineado por semana del año.", FUENTE)
+    with txt:
+        ed.insight(
+            f"Sí. Quitada la tendencia, el patrón de {', '.join(str(y) for y in seas['full_years'][:-1])} y "
+            f"{seas['full_years'][-1]} coincide con una correlación de entre {es(seas['corr_min'], 2)} y "
+            f"{es(seas['corr_max'], 2)}: las ventas suben hacia {MESES[seas['peak_month'] - 1]} y bajan hacia "
+            f"{MESES[seas['low_month'] - 1]}, con una amplitud de alrededor del {pct(seas['amplitude_pct_of_mean'], 0)} "
+            "de la venta media. Es una razón para pensar que el pasado puede contener información útil sobre el futuro."
+        )
+        ed.note(
+            "<b>Detalle técnico.</b> La componente estacional de la descomposición es un promedio que se repite por "
+            "construcción, así que la consistencia se comprueba año a año. Solo hay tres años completos: 2020 y 2024 "
+            "tienen media serie a cada lado porque la tendencia usa una media móvil centrada de 52 semanas."
+        )
+
+# ============================================================ 04 · DEL HISTÓRICO A UNA PREVISIÓN ==
+ed.beat(
+    "metodo", "04", "Método", "Del histórico a una previsión",
+    deck=(
+        "En una serie temporal hay una regla que no puedo romper: <b>el futuro no puede enseñarle al modelo cómo "
+        "predecir el pasado</b>. Por eso no dividí los datos al azar."
+    ),
 )
-ui.story_steps([
-    ("Separé en el tiempo, no al azar",
-     f"Reservé el {int(dataset_stats['n_test'])*100//n_obs}% final de las semanas "
-     f"({dataset_stats['n_test']} semanas, de {dataset_stats['test_start']} a {dataset_stats['test_end']}) "
-     "como test. El modelo solo podía aprender del pasado."),
-    ("Comprobé que la serie no era estacionaria",
-     f"El test de Dickey-Fuller (ADF) sobre la serie original dio p={adf_results[0]['p_value']:.4f}: no "
-     "había evidencia de estacionariedad, así que no podía ajustar un SARIMA directamente."),
-    ("Diferencié hasta conseguirlo",
-     "Con una diferenciación de primer orden (d=1), el ADF bajó a p<0,0001: la serie diferenciada sí era "
-     "estacionaria. Apliqué ese mismo criterio a la parte estacional y obtuve D=1."),
-    ("Leí ACF y PACF para proponer un candidato",
-     "Los picos alrededor de múltiplos de 52 semanas en la ACF confirmaban la estacionalidad anual. A "
-     "partir de ahí propuse SARIMA(0,1,1)(0,1,1,52) como candidato, y lo validé después con los residuos, "
-     "no de forma mecánica."),
+ed.route(["Ventas semanales", "Test ADF", "Diferenciación d=1, D=1", "ACF y PACF", "SARIMA(0,1,1)(0,1,1,52)",
+          "Previsión a 20 semanas"])
+ed.steps([
+    ("Separé el pasado del futuro",
+     f"Las primeras {n_train} semanas se utilizaron para entrenar. Las últimas {n_test} quedaron completamente fuera "
+     "del entrenamiento para comprobar si el modelo acertaba con datos que nunca había visto."),
+    ("Comprobé si la serie podía modelarse directamente",
+     f"El test ADF indicó que la serie original no era estacionaria ({pvalue(adf_raw['p_value'])}). En términos "
+     "sencillos: su comportamiento cambiaba con el tiempo y necesitaba ser transformada antes de modelarla."),
+    ("Eliminé tendencia y estacionalidad",
+     f"Apliqué una diferenciación normal (con ella, el ADF sí indica estacionariedad: {pvalue(adf_diff['p_value'])}) "
+     "y otra estacional de 52 semanas, para trabajar con una serie más estable."),
+    ("Busqué la estructura temporal",
+     f"La ACF mostró un pico claro en la primera semana ({es(desc['acf_lag1'], 2)}), que apunta a un término de "
+     "media móvil. En las 52 semanas, en cambio, apenas se mueve "
+     f"({es(desc['acf_lag52'], 2)}, dentro de la banda de no significación): la estacionalidad anual no sale de ahí, "
+     "sale de lo que vimos al explorar los datos. Con esa información propuse un candidato: "
+     "<b>SARIMA(0,1,1)(0,1,1,52)</b>. Después lo comprobé con datos que el modelo nunca había visto."),
 ])
-st.write("")
-st.plotly_chart(charts.train_test_split_chart(split_df), use_container_width=True, config={"displayModeBar": False})
-ui.finding(
-    f"Así dividí las {n_obs} semanas: {dataset_stats['n_train']} para entrenar y las últimas "
-    f"{dataset_stats['n_test']} para comprobar honestamente si el modelo acertaba, nunca al revés."
+
+ed.subhead("¿Cómo dividimos el tiempo?", level="wide")
+with ed.figure("corte"):
+    st.plotly_chart(charts.train_test_split_chart(split_df), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 04", f"Las {n_train} primeras semanas para entrenar y las {n_test} últimas como test.", FUENTE)
+
+ed.subhead("¿Por qué diferenciar?", level="wide")
+with ed.split("estacionariedad", "7-5") as (viz, txt):
+    with viz:
+        st.plotly_chart(charts.stationarity_chart(split_df[split_df["split"] == "train"], diff_df),
+                        use_container_width=True, config=PLOT)
+        ed.caption("FIG. 05", "Serie de entrenamiento antes y después de diferenciarla una vez.", FUENTE)
+    with txt:
+        ed.insight(
+            "Antes de diferenciar, la serie sube con el tiempo: su media no es estable. Después, oscila alrededor de "
+            "cero. Eso es lo que necesita el modelo para poder aprender."
+        )
+        ed.note(f"<b>Detalle técnico.</b> ADF de la serie original: {pvalue(adf_raw['p_value'])}. ADF de la serie "
+                f"diferenciada: {pvalue(adf_diff['p_value'])}. La diferenciación estacional (D=1) no se contrastó con un "
+                "test específico: se eligió por el patrón anual que se ve en los datos.")
+
+ed.subhead("¿Qué dicen la ACF y la PACF?", level="wide")
+with ed.figure("acf"):
+    left, right = st.columns(2)
+    with left:
+        st.plotly_chart(charts.acf_chart(acf_pacf), use_container_width=True, config=PLOT)
+    with right:
+        st.plotly_chart(charts.pacf_chart(acf_pacf), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 06", "Memoria de la serie diferenciada. Las líneas de puntos marcan el límite de significación; "
+                          "en ámbar, el retardo de 52 semanas.", FUENTE)
+ed.insight(
+    "El modelo final tiene solo dos parámetros: uno que corrige el error de la semana anterior y otro que corrige el "
+    "error de hace un año (el mismo punto del ciclo estacional).",
+    aside=(
+        f"ma.L1 = {es(params['ma.L1']['coef'], 2)} ({pvalue(params['ma.L1']['p_value'])}) y ma.S.L52 = "
+        f"{es(params['ma.S.L52']['coef'], 2)} ({pvalue(params['ma.S.L52']['p_value'])}). Ajustado con statsmodels "
+        f"sobre las {n_train} semanas de entrenamiento."
+    ),
 )
 
-with st.expander("Para quien quiera el detalle técnico — ADF, diferenciación, ACF/PACF"):
-    st.markdown("Test de Dickey-Fuller Aumentado (ADF), antes y después de diferenciar:")
-    adf_cols = st.columns(len(adf_results))
-    for c, res in zip(adf_cols, adf_results):
-        with c:
-            st.metric(res["name"], "Estacionaria" if res["is_stationary"] else "No estacionaria",
-                      f'p={res["p_value"]:.4f}')
-    st.plotly_chart(charts.stationarity_chart(split_df[split_df["split"] == "train"], diff_df),
-                     use_container_width=True, config={"displayModeBar": False})
-    st.markdown(
-        "Con la serie ya estacionaria, usé la ACF y la PACF para orientar la elección de `p`, `d`, `q` "
-        "(y su versión estacional `P`, `D`, `Q`, con periodo 52):"
-    )
-    st.plotly_chart(charts.acf_pacf_chart(acf_pacf), use_container_width=True, config={"displayModeBar": False})
-ui.section_close()
-
-# ============================================================ MODELO ==
-ui.section_open("modelo")
-ui.eyebrow("¿Funciona de verdad?")
-ui.h2("SARIMA(0,1,1)(0,1,1,52)")
-ui.lead(
-    "Entrené el modelo solo con las semanas de train y lo evalué sobre las 52 semanas de test que nunca "
-    "había visto. La pregunta que quería responder: ¿acierta lo suficiente como para sustituir a la "
-    "intuición de \"esto se parece a lo del año pasado\"?"
+# ============================================================ 05 · ¿PUEDE ANTICIPAR LAS VENTAS? ==
+ed.beat(
+    "modelo", "05", "Modelo", "¿Puede realmente anticipar las ventas?", weight="major",
+    deck=[
+        f"El modelo se enfrentó a las últimas {n_test} semanas sin haberlas visto durante el entrenamiento.",
+        "El resultado:",
+    ],
 )
-m1, m2, m3 = st.columns(3)
-with m1:
-    st.metric("MAE — error medio", eur(sarima_m["mae"]),
-              f'-{improv["mae"]:.0f}% vs asumir "año pasado"', delta_color="inverse")
-with m2:
-    st.metric("MAPE — error %", f'{sarima_m["mape"]:.2f}%',
-              f'-{improv["mape"]:.0f}% vs asumir "año pasado"', delta_color="inverse")
-with m3:
-    st.metric("RMSE", eur(sarima_m["rmse"]),
-              f'-{improv["rmse"]:.0f}% vs asumir "año pasado"', delta_color="inverse")
-
-with st.expander("¿Qué significan MAE, MAPE y RMSE, y qué hace exactamente el modelo?"):
-    st.markdown(
-        "- **MAE** — de media, en cuántos euros me equivoco por semana.\n"
-        "- **MAPE** — el mismo error, en porcentaje. Permite comparar entre negocios de distinto tamaño; "
-        "por debajo del 10% se considera un pronóstico bueno en retail.\n"
-        "- **RMSE** — como el MAE, pero penaliza más los errores grandes.\n\n"
-        "Me bastaron **2 parámetros** para capturar toda la dinámica de la serie:"
-    )
-    for p in model_summary["params"]:
-        if p["name"] == "sigma2":
-            continue
-        label = "Corrección del error de la semana anterior" if p["name"] == "ma.L1" else \
-                "Corrección del error de hace un año (mismo ciclo estacional)"
-        st.markdown(f"- **{label}** (`{p['name']}` = {p['coef']:.3f}, p={p['p_value']:.4f}, significativo)")
-
-st.write("")
-ui.h3("Predicción vs realidad, sobre las 52 semanas de test")
-st.plotly_chart(charts.test_forecast_chart(test_forecast_df, split_df), use_container_width=True,
-                 config={"displayModeBar": False})
-sarima_mape_txt = ui.stat(f"{sarima_m['mape']:.2f}%", "pos")
-naive_mape_txt = ui.stat(f"{naive_m['mape']:.2f}%", "neg")
-ui.finding(
-    f"Sobre una venta media de test de {eur(metrics['test_mean_sales'])}/semana, mi SARIMA se desvía de "
-    f"media solo {sarima_mape_txt}, frente al {naive_mape_txt} "
-    "de asumir que la semana se repite igual que hace un año: más de <b>3 veces peor</b>. El patrón de "
-    "crecimiento que capté con el modelo (la tendencia) es justo lo que a esa regla ingenua se le escapa."
-)
-ui.section_close()
-
-# ============================================================ EXPLICABILIDAD ==
-ui.section_open("explicabilidad")
-ui.eyebrow("¿Por qué puedo fiarme?")
-ui.h2("Explicabilidad y diagnóstico")
-ui.lead(
-    "El SARIMA no es una caja negra: sus 2 parámetros capturan exactamente la tendencia y la "
-    "estacionalidad anual que ya vi en la descomposición. Para fiarme de la predicción, tenía que "
-    "comprobar que no quedaba señal sin explicar en lo que sobra: los residuos."
-)
-st.plotly_chart(charts.residual_diagnostics(resid_df, residual_diag), use_container_width=True,
-                 config={"displayModeBar": False})
-lag10 = next(r for r in residual_diag["ljung_box"] if r["lag"] == 10)
-lag20 = next(r for r in residual_diag["ljung_box"] if r["lag"] == 20)
-ui.finding(
-    f"El test de Ljung-Box no encontró autocorrelación significativa en el lag 20 "
-    f"(p={lag20['p_value']:.4f}), y el histograma y el QQ-plot muestran residuos razonablemente centrados "
-    f"en cero. <b>Soy honesto</b>: en el lag 10 sí aparece un rastro puntual de autocorrelación "
-    f"(p={lag10['p_value']:.4f}). No es ruido perfectamente blanco, aunque no compromete la precisión "
-    "que observé sobre el conjunto de test."
-)
-ui.section_close()
-
-# ============================================================ PLAYGROUND ==
-ui.section_open("playground")
-ui.eyebrow("Pruébalo tú mismo")
-ui.h2("Playground — explora el forecast a 20 semanas")
-ui.lead(
-    "Elige una semana dentro del horizonte que ya calculé y observa la predicción junto a su intervalo "
-    "de confianza del 95%: fíjate en cómo esa incertidumbre crece cuanto más lejos miras."
+ed.metrics([
+    ("Error porcentual (MAPE)", pct(sarima_m["mape"], 2),
+     f"De cada 100 € que se venden, la previsión se equivoca de media en {es(sarima_m['mape'])} €."),
+    ("Error medio (MAE)", eur(sarima_m["mae"]),
+     f"De media, la previsión de una semana se desvía {eur(sarima_m['mae'])} sobre una venta media de "
+     f"{eur(metrics['test_mean_sales'])} en el año de test."),
+    ("Fallos grandes (RMSE)", eur(sarima_m["rmse"]),
+     "Como el error medio, pero castiga más las semanas en que el modelo falla por mucho."),
+])
+ed.insight(
+    "Pero una métrica aislada no dice mucho. Por eso lo comparé con una alternativa muy sencilla: "
+    "<b>«la próxima semana será como la misma semana del año pasado»</b>."
 )
 
-pg_left, pg_right = st.columns([1, 1.3], gap="large")
-with pg_left:
-    horizon = st.slider("Semana del horizonte (1 = la próxima semana)", 1, model_config["future_horizon"], 10)
+ed.subhead("¿Y frente a repetir el año anterior?", level="wide")
+with ed.figure("comparacion"):
+    st.plotly_chart(charts.test_forecast_chart(test_df, baselines_df, split_df), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 07", f"Ventas reales y previsión de cada método sobre las {n_test} semanas de test. La banda es el "
+                          "intervalo de predicción al 95% del SARIMA.", "Modelo entrenado en este proyecto")
+ed.metrics([
+    ("Repetir el año anterior", pct(year_ago_m["mape"], 2),
+     f"Se queda corto {'todas las semanas' if abs(abs(year_ago_m['bias_pct']) - year_ago_m['mape']) < 0.01 else 'casi todas las semanas'} "
+     f"({pct(year_ago_m['bias_pct'], 1)} de sesgo): las ventas crecen y esta regla "
+     f"lo ignora. Frente a ella, el SARIMA reduce el MAPE un <b>{improv['mape']:.0f}%</b> (MAE {eur(year_ago_m['mae'])} → "
+     f"{eur(sarima_m['mae'])}; RMSE {eur(year_ago_m['rmse'])} → {eur(sarima_m['rmse'])})."),
+    ("Año anterior ajustado por crecimiento", pct(growth_m["mape"], 2),
+     f"La misma regla, multiplicada por el crecimiento del último año de entrenamiento ({sgn(growth_pct)}%). Solo "
+     "usa información disponible antes del test."),
+    ("SARIMA", pct(sarima_m["mape"], 2),
+     f"Mejor que la referencia ajustada en {wins} de {n_test} semanas: un {es(audit['mape_reduction_vs_growth_pct'], 0)}% "
+     f"menos de error que no es concluyente con un año de test ({pvalue(wilcoxon_p)})."),
+    ("Repetir la última semana", pct(last_m["mape"], 2),
+     "Mantener la venta de la última semana de entrenamiento durante todo el año de test."),
+])
+ed.insight(
+    "No se trataba de construir el modelo más complejo. Se trataba de comprobar si podía mejorar una forma muy "
+    f"sencilla de anticipar las ventas, y lo hace: un <b>{improv['mape']:.0f}% menos de error</b> que repetir el año "
+    "anterior. Pero la mejora no está en que el SARIMA sea sofisticado: está en <b>incorporar la tendencia y la "
+    "estacionalidad</b>. Una regla de una línea que también las incorpora llega casi al mismo error.",
+    aside=f"La referencia ajustada usa el crecimiento del último año de entrenamiento ({sgn(growth_pct)}%), calculado solo "
+          f"con datos anteriores al test, así que no hay fuga de información. Con {n_test} semanas, la diferencia entre "
+          f"ambas ({pct(sarima_m['mape'], 2)} frente a {pct(growth_m['mape'], 2)}) queda dentro del ruido.",
+)
+
+# ============================================================ 06 · ¿QUÉ QUEDA SIN EXPLICAR? ==
+ed.beat(
+    "diagnostico", "06", "Diagnóstico", "¿Qué queda sin explicar?",
+    deck=[
+        "Un forecast no termina cuando aparece una predicción. También hay que mirar qué está dejando atrás el modelo.",
+        "Analicé los residuos: la diferencia entre lo que realmente ocurrió y lo que el modelo esperaba.",
+    ],
+)
+with ed.figure("residuos"):
+    r1, r2 = st.columns(2), st.columns(2)
+    for col, fig in ((r1[0], charts.residuals_time(resid_clean)), (r1[1], charts.residuals_hist(resid_clean)),
+                     (r2[0], charts.residuals_qq(resid_clean)), (r2[1], charts.residuals_acf(resid_clean))):
+        with col:
+            st.plotly_chart(fig, use_container_width=True, config=PLOT)
+    ed.caption("FIG. 08", f"Residuos del ajuste sobre el entrenamiento, sin las {rd['burn_in']} primeras semanas.",
+               "Modelo entrenado en este proyecto")
+ed.insight(
+    f"Tras apartar las primeras semanas, en las que el modelo aún no había «arrancado», el test de Ljung-Box no "
+    f"detecta autocorrelación significativa ({pvalue(clean['lb10'])} en el lag 10 y {pvalue(clean['lb20'])} en el lag "
+    "20) y los residuos quedan centrados cerca de cero. Pero no es un resultado limpio: son p-valores moderados, "
+    f"que con otros puntos de corte del arranque oscilan entre {es(min(sens['lb10_min'], sens['lb20_min']), 2)} y "
+    f"{es(max(sens['lb10_max'], sens['lb20_max']), 2)}, y "
+    f"los residuos se parecen a una normal solo de forma aproximada (Shapiro-Wilk, {pvalue(clean['shapiro_p'])}).",
+    aside=(
+        f"Con d=1 y D=1 (s=52) las primeras 53 observaciones son inicialización, no error del modelo: el primer "
+        f"residuo es {eur(rd['first_residual'])}, la propia venta de la primera semana. Se apartan las "
+        f"{rd['burn_in']} primeras (hasta el {fecha(pd.Timestamp(rd['clean_start_date']) - pd.Timedelta(weeks=1))}), "
+        f"siempre como un tramo continuo. Con todos los residuos, el lag "
+        f"10 daría {pvalue(rd['all_residuals']['lb10'])}: un rastro de autocorrelación que en gran parte es ese arranque."
+    ),
+)
+ed.insight("La precisión importa. Saber dónde deja de ser perfecta también.", tight=True)
+
+# ============================================================ 07 · PLAYGROUND ==
+ed.beat(
+    "playground", "07", "Playground", "¿Qué pasará dentro de 1, 10 o 20 semanas?", weight="major",
+    deck=[
+        "El modelo no devuelve una única cifra como si el futuro estuviera escrito. Para cada semana genera una "
+        "<b>predicción central</b> y un <b>intervalo de confianza del 95%</b>.",
+        "Elige cualquier semana dentro de las próximas 20 y observa cómo cambia la previsión.",
+    ],
+)
+with ed.split("playground", "4-8") as (pg_left, pg_right):
+    with pg_left:
+        horizon = st.slider("Semana del horizonte (1 = la próxima semana)", 1, model_config["future_horizon"], 10)
     selected = future_df.iloc[horizon - 1]
     width = selected["upper95"] - selected["lower95"]
-    width_pct = width / selected["forecast"] * 100
-    st.write("")
-    ui.stat_card("Predicción central", eur(selected["forecast"]), selected["date"].strftime("%d/%m/%Y"))
-    c1, c2 = st.columns(2)
-    with c1:
-        ui.stat_card("Límite inferior", eur(selected["lower95"]), "IC 95%", color=charts.NEGATIVE, value_size="1.3rem")
-    with c2:
-        ui.stat_card("Límite superior", eur(selected["upper95"]), "IC 95%", color=charts.POSITIVE, value_size="1.3rem")
+    with pg_right:
+        st.plotly_chart(charts.playground_horizon_chart(split_df, future_df, horizon), use_container_width=True, config=PLOT)
+        ed.caption("FIG. 09", "Últimas 30 semanas reales y previsión a 20 semanas con su intervalo al 95%; el punto "
+                              "negro es la semana elegida.", "Modelo final entrenado con las 260 semanas")
 
-with pg_right:
-    st.plotly_chart(charts.playground_horizon_chart(split_df, future_df, horizon), use_container_width=True,
-                     config={"displayModeBar": False})
+ed.metrics([
+    (f"Semana {horizon} · {selected['date'].strftime('%d/%m/%Y')}", eur(selected["forecast"]),
+     "Predicción central: el escenario más probable."),
+    ("Intervalo al 95%", f"{eur(selected['lower95'])} – {eur(selected['upper95'])}",
+     "El rango en el que esperamos que caiga la venta real."),
+    ("Margen", f"±{pct(width / 2 / selected['forecast'] * 100)}", f"Ancho total del intervalo: {eur(width)}."),
+], word=True)
+ed.insight(
+    f"La previsión no dice «venderás exactamente {eur(selected['forecast'])}». Dice: este es el escenario central y "
+    "este es el margen de incertidumbre que deberíamos tener en cuenta al planificar."
+)
 
-st.write("")
-if horizon <= 5:
-    plazo_txt = (
-        f"A tan corto plazo (semana {horizon}), el intervalo es estrecho: unos {eur(width)} de ancho "
-        f"(±{width_pct/2:.1f}% sobre la predicción central). Suficiente precisión para comprometerte con "
-        "un pedido concreto."
-    )
-elif horizon <= 14:
-    plazo_txt = (
-        f"A {horizon} semanas vista, el intervalo ya se ha ensanchado a unos {eur(width)} "
-        f"(±{width_pct/2:.1f}%): todavía útil para dimensionar inventario y personal, con más margen de "
-        "seguridad que a corto plazo."
-    )
-else:
-    plazo_txt = (
-        f"A {horizon} semanas vista, el intervalo llega a unos {eur(width)} de ancho "
-        f"(±{width_pct/2:.1f}%). Bueno para el orden de magnitud y la planificación general, pero ya poco "
-        "fiable para comprometerte con una cifra exacta de pedido."
-    )
-ui.finding(plazo_txt)
-ui.section_close()
+ed.subhead("¿Cuánto crece la incertidumbre?", level="wide")
+with ed.figure("incertidumbre"):
+    st.plotly_chart(charts.interval_width_chart(widths_df), use_container_width=True, config=PLOT)
+    ed.caption("FIG. 10", "Ancho del intervalo al 95% según las semanas hacia delante.", "Modelos entrenados en este proyecto")
+ed.insight(
+    f"Cuanto más lejos miramos, mayor es la incertidumbre, pero no de forma abrupta en este horizonte: dentro de las "
+    f"próximas 20 semanas el intervalo se ensancha un {pct(iv['future_width_growth_pct'])} (de "
+    f"{eur(iv['future_width_w1'])} a {eur(iv['future_width_w20'])}), mientras que en las {n_test} semanas del test "
+    f"casi se duplica (×{es(iv['test_width_ratio'], 1)}).",
+    aside=(
+        f"En el test, el intervalo contuvo la venta real en {iv['coverage']} de {iv['n']} semanas (con un 95% de "
+        f"confianza cabría esperar unas 49): sugiere que es algo prudente, con un margen medio de "
+        f"±{pct(iv['half_width_pct_test'], 0)} frente a un error real del {pct(sarima_m['mape'])}."
+    ),
+)
 
-# ============================================================ RESULTADOS ==
-ui.section_open("resultados")
-ui.eyebrow("El hallazgo, resumido")
-ui.h2("Resultados")
-r1, r2, r3 = st.columns(3)
-with r1:
-    ui.stat_card("MAE", eur(sarima_m["mae"]), "SARIMA", color=charts.POSITIVE)
-    st.write("")
-    ui.stat_card("MAE", eur(naive_m["mae"]), 'asumir "año pasado"', color=charts.MUTED)
-with r2:
-    ui.stat_card("MAPE", f'{sarima_m["mape"]:.2f}%', "SARIMA", color=charts.POSITIVE)
-    st.write("")
-    ui.stat_card("MAPE", f'{naive_m["mape"]:.2f}%', 'asumir "año pasado"', color=charts.MUTED)
-with r3:
-    ui.stat_card("RMSE", eur(sarima_m["rmse"]), "SARIMA", color=charts.POSITIVE)
-    st.write("")
-    ui.stat_card("RMSE", eur(naive_m["rmse"]), 'asumir "año pasado"', color=charts.MUTED)
-st.write("")
-improv_mape_txt = ui.stat(f"{improv['mape']:.0f}%", "pos")
-ui.finding(
-    f"Respondo a la pregunta de negocio del principio: <b>sí</b>. El propio historial de ventas basta "
-    f"para predecir con un error medio de solo {sarima_mape_txt} sobre datos nunca vistos, sin necesitar "
-    f"ninguna señal externa, y mejora la intuición de repetir el año anterior en {improv_mape_txt} menos "
-    "error."
+# ============================================================ 08 · QUÉ HEMOS APRENDIDO ==
+ed.beat(
+    "resultado", "08", "Resultado", "El pasado contiene una señal útil", weight="major",
+    deck=(
+        f"Las {n_test} semanas de test muestran que el historial de ventas puede contener suficiente información "
+        "para construir una previsión útil."
+    ),
 )
-ui.section_close()
+ed.subhead("En resumen")
+ed.metrics([
+    ("Error en el test", pct(sarima_m["mape"], 2),
+     f"MAPE del SARIMA sobre {n_test} semanas nunca vistas (MAE {eur(sarima_m['mae'])}, RMSE {eur(sarima_m['rmse'])})."),
+    ("Frente al año anterior", f"−{improv['mape']:.0f}%",
+     f"Menos error que repetir la misma semana del año pasado ({pct(year_ago_m['mape'], 2)}, {eur(year_ago_m['mae'])}, "
+     f"{eur(year_ago_m['rmse'])})."),
+    ("Frente a la regla ajustada", f"−{es(audit['mape_reduction_vs_growth_pct'], 0)}%",
+     f"Casi empate ({pct(growth_m['mape'], 2)}): con un año de test, la diferencia no es concluyente."),
+    ("Intervalo al 95%", f"{iv['coverage']} de {iv['n']}", "Semanas de test en las que la venta real cayó dentro del intervalo."),
+])
+ed.insight(
+    f"Pero el resultado más interesante no es el {es(sarima_m['mape'], 2)}%. Es que la previsión mejora cuando dejamos de asumir que el "
+    "futuro será simplemente una repetición del pasado y <b>utilizamos también la tendencia y la estacionalidad que "
+    "contiene la serie</b>. El SARIMA es una forma de hacerlo; una regla sencilla ajustada por crecimiento es otra, y "
+    "en este test rinde casi igual."
+)
 
-# ============================================================ IMPACTO ==
-ui.section_open("impacto", tight=True)
-ui.impact_banner(
-    f'Asumir que la semana "se repite como el año pasado" cuesta un '
-    f'<span class="accent-neg">{improv["mape"]:.0f}% más de error</span> de previsión. '
-    f'El modelo lo reduce a solo un <span class="accent-pos">{sarima_m["mape"]:.2f}%</span>.',
-    quote='"El modelo no elimina la incertidumbre — la cuantifica, para planificar con ella en vez de a pesar de ella."',
+# ============================================================ 09 · DECISIONES ==
+ed.beat(
+    "decisiones", "09", "Implicaciones", "¿Qué podría hacer una empresa con esta previsión?",
+    deck=(
+        "El modelo no decide cuánto comprar. Pero puede aportar una <b>referencia cuantitativa</b> para tomar esa "
+        "decisión con menos incertidumbre."
+    ),
 )
-ui.section_close()
+with ed.figure("hipotesis"):
+    ed.cards([
+        {"tag": "Hipótesis · Inventario", "title": "Planificación de inventario", "points": [
+            f"<b>Insight.</b> La previsión reduce el error frente a repetir el año anterior ({pct(sarima_m['mape'], 2)} "
+            f"frente a {pct(year_ago_m['mape'], 2)}), aunque una regla ajustada por crecimiento llega a "
+            f"{pct(growth_m['mape'], 2)}.",
+            "<b>Hipótesis.</b> Utilizar la previsión como una de las referencias para planificar pedidos semanales, "
+            "comparándola siempre con esa regla sencilla.",
+            "<b>Qué medir.</b> Error de previsión, sobrestock y roturas de stock.",
+        ]},
+        {"tag": "Hipótesis · Personal", "title": "Planificación de personal", "points": [
+            "<b>Insight.</b> La previsión permite anticipar semanas con mayor o menor volumen esperado.",
+            "<b>Hipótesis.</b> Utilizar el forecast para anticipar necesidades de personal y ajustar recursos.",
+            "<b>Qué medir.</b> Coste de personal, cobertura y desviación frente a la demanda real.",
+        ]},
+        {"tag": "Hipótesis · Incertidumbre", "title": "Planificar con incertidumbre", "points": [
+            f"<b>Insight.</b> El intervalo de confianza aumenta cuanto más lejos está la fecha prevista "
+            f"({sgn(iv['future_width_growth_pct'])}% en 20 semanas; ×{es(iv['test_width_ratio'], 1)} a 52).",
+            "<b>Hipótesis.</b> Usar la predicción central como referencia a corto plazo y el rango completo para "
+            "escenarios de planificación.",
+            "<b>Qué medir.</b> Ancho del intervalo y error real a cada horizonte.",
+        ]},
+    ], count=3)
+ed.subhead("Una advertencia importante")
+ed.insight("Son <b>hipótesis de negocio</b>, no conclusiones del modelo. La previsión describe cómo se comportaron las "
+           "ventas en estos cinco años; decidir qué hacer requiere probar la acción y medir su efecto.", tight=True)
 
-# ============================================================ DECISIONES ==
-ui.section_open("decisiones")
-ui.eyebrow("¿Qué haría con esto?")
-ui.h2("Decisiones que habilita")
-ui.decision_flow(
-    f'El error del modelo ({sarima_m["mape"]:.2f}%) es {improv["mape"]:.0f}% menor que repetir el año anterior',
-    "Basar el pedido semanal a proveedores en el forecast SARIMA, no en la venta de la misma semana del año pasado",
-    "Reducir sobrestock y roturas de stock",
-    "MAPE de previsión semanal",
+# ============================================================ 10 · LIMITACIONES ==
+ed.beat("limitaciones", "10", "Limitaciones", "Hasta dónde llega el modelo",
+        deck="Una previsión útil no es una previsión perfecta.")
+ed.cards([
+    {"title": "Lo que el modelo sí puede hacer", "color": "var(--positive)", "points": [
+        f"Predecir las ventas semanales agregadas con un <b>MAPE del {es(sarima_m['mape'], 2)}%</b> sobre las {n_test} "
+        "semanas de test.",
+        "Capturar la <b>tendencia y la estacionalidad anual</b> presentes en el histórico.",
+        "<b>Mejorar una referencia sencilla</b> basada en repetir el año anterior.",
+        "Mostrar un <b>intervalo de confianza</b> para cuantificar la incertidumbre.",
+    ]},
+    {"title": "Lo que el modelo no puede hacer", "color": "var(--negative)", "points": [
+        "Anticipar <b>cambios que no aparecen en el histórico</b>: promociones, crisis, nuevas tiendas o cambios "
+        "bruscos en el comportamiento.",
+        "<b>Explicar por qué</b> aumentan o disminuyen las ventas.",
+        "Predecir qué ocurrirá en una <b>tienda, categoría o producto</b> concreto.",
+        "Garantizar el mismo nivel de precisión si <b>cambian las condiciones del negocio</b>.",
+        f"Demostrar que es <b>mejor que una regla sencilla</b> ajustada por crecimiento: con {n_test} semanas, "
+        f"{pct(sarima_m['mape'], 2)} frente a {pct(growth_m['mape'], 2)} no es concluyente.",
+        "Asegurar que el resultado <b>se repita</b>: solo hay un año de test.",
+    ]},
+])
+ed.passage(
+    "La siguiente iteración natural sería incorporar variables externas como promociones, festivos o eventos, y "
+    "trabajar con una granularidad mayor.",
+    "Porque una cosa es predecir cuánto se venderá. <b>Otra muy distinta es entender por qué.</b>",
+    aside=(
+        f"Un único corte temporal ({n_test} semanas) y sin backtesting rodante: no se sabe cuánto varía el error en "
+        "otros años. La previsión final se reajustó con las 260 semanas partiendo de los parámetros del ajuste de "
+        "entrenamiento, porque el optimizador no convergía desde cero. Los intervalos suponen residuos normales y "
+        "estables, y aquí solo lo son de forma aproximada."
+    ),
 )
-st.write("")
-ui.decision_flow(
-    "El intervalo de confianza se ensancha cuanto más lejos mira el forecast",
-    "Usar el punto central para pedidos a 1-5 semanas y el rango completo (no una cifra exacta) para "
-    "planificación a 3+ meses",
-    "Evitar comprometerse con cifras exactas en horizontes largos",
-    "Ancho del intervalo de confianza (95%)",
-)
-st.write("")
-ui.decision_flow(
-    f"Queda un rastro de autocorrelación en el lag 10 de los residuos (p={lag10['p_value']:.4f})",
-    "Vigilar semanalmente el error real vs el previsto y reentrenar si se desvía de forma sostenida",
-    "Detectar cambios estructurales (aperturas, competencia, hábitos) antes de que el forecast se degrade",
-    "Error real vs esperado, en ventana móvil",
-)
-ui.section_close()
 
-# ============================================================ LIMITACIONES ==
-ui.section_open("limitaciones")
-ui.eyebrow("Honestidad ante todo")
-ui.h2("Limitaciones")
-st.write("")
-lc1, lc2 = st.columns(2, gap="large")
-with lc1:
-    st.markdown('<p class="limit-col-title">Lo que el modelo SÍ puede hacer</p>', unsafe_allow_html=True)
-    st.markdown(
-        f"""<ul class="limit-list">
-        <li>Predecir ventas semanales agregadas con un error medio del {sarima_m['mape']:.2f}% sobre datos nunca vistos.</li>
-        <li>Capturar tendencia y estacionalidad anual (52 semanas) sin necesitar ninguna variable externa.</li>
-        <li>Superar ampliamente una previsión ingenua basada en repetir el año anterior ({improv['mape']:.0f}% menos error).</li>
-        <li>Cuantificar la incertidumbre de cada semana futura con un intervalo de confianza del 95%.</li>
-        </ul>""",
-        unsafe_allow_html=True,
-    )
-with lc2:
-    st.markdown('<p class="limit-col-title">Lo que el modelo NO puede hacer</p>', unsafe_allow_html=True)
-    st.markdown(
-        """<ul class="limit-list">
-        <li>Anticipar eventos que rompan el patrón histórico (una promoción agresiva, una crisis, un nuevo local) — solo asume que el patrón se repite.</li>
-        <li>Bajar a nivel de tienda, categoría o producto — trabaja sobre la cifra agregada semanal.</li>
-        <li>Explicar por qué suben o bajan las ventas — solo el cuánto, no el porqué.</li>
-        <li>Garantizar el mismo error si cambian las condiciones estructurales del negocio.</li>
-        </ul>""",
-        unsafe_allow_html=True,
-    )
-st.markdown(
-    '<div class="limit-note"><p class="co-body">'
-    "Para mejorar el modelo, incorporaría granularidad diaria o por tienda, y variables externas "
-    "(promociones, festivos, eventos) que expliquen el porqué de las variaciones, no solo que las "
-    "predigan: un camino natural para la siguiente iteración de este análisis. También quiero revisar el "
-    f"pequeño rastro de autocorrelación detectado en el lag 10 de los residuos (p={lag10['p_value']:.4f}): "
-    "no compromete la precisión observada, pero sugiere que queda un margen mínimo de estructura por capturar."
-    "</p></div>",
-    unsafe_allow_html=True,
+# ============================================================ 11 · CONCLUSIÓN ==
+ed.beat(
+    "conclusion", "11", "Conclusión", "El futuro no se puede conocer. Pero sí se puede estimar mejor.", weight="major",
+    deck=[
+        f"Con {years_txt} años de ventas semanales, construí un modelo SARIMA capaz de anticipar las siguientes {n_test} "
+        f"semanas con un MAPE del <b>{es(sarima_m['mape'], 2)}%</b> sobre datos que nunca había visto.",
+        f"Frente a una previsión basada simplemente en repetir el año anterior, el error se redujo un "
+        f"<b>{improv['mape']:.0f}%</b>. Pero una regla sencilla que también tiene en cuenta el crecimiento llega casi "
+        "al mismo nivel: lo que funciona es incorporar la tendencia y la estacionalidad, no la complejidad del modelo.",
+        "El aprendizaje más importante no es que el modelo acierte. Es que <b>una buena previsión también tiene que "
+        "decir cuánto podemos confiar en ella</b>. El forecast aporta una estimación. El intervalo aporta el margen "
+        "de incertidumbre. Y la decisión sigue estando en el negocio.",
+    ],
 )
-ui.section_close()
-
-# ============================================================ CONCLUSIÓN ==
-ui.section_open("conclusion")
-ui.eyebrow("Del dato a la decisión")
-ui.h2("Conclusión")
-ui.lead(
-    f"Sí: el propio historial de ventas basta para predecir con un error medio del {sarima_m['mape']:.2f}% "
-    f"sobre 52 semanas nunca vistas, {improv['mape']:.0f}% mejor que asumir que la semana se repite como "
-    "el año pasado. El modelo no sustituye la decisión de comprar o de planificar personal: la apoya con "
-    "mejor información y con una cifra de incertidumbre explícita en vez de una corazonada."
+ed.band(
+    "Para cerrar",
+    'No se trata de adivinar las ventas. Se trata de llegar a la próxima semana con '
+    '<span class="accent">algo más que una intuición</span>.',
 )
-ui.section_close()
-
-ui.footer_minimal(
-    name="Borja Mora Méndez",
-    repo_url="https://github.com/BORJAMOME/sarima-ventas-retail-app",
-    linkedin_url="https://www.linkedin.com/in/borja-mora-mendez/",
-    email="borja.mora.mendez@gmail.com",
-)
+ed.colophon("Borja Mora Méndez", [
+    ("Repositorio del proyecto", "https://github.com/BORJAMOME/sarima-ventas-retail-app"),
+    ("Portfolio", "https://borjamora.es/"),
+    ("LinkedIn", "https://www.linkedin.com/in/borja-mora-mendez/"),
+    ("Contacto", "mailto:borja.mora.mendez@gmail.com"),
+])
