@@ -577,6 +577,6 @@ ed.band(
 ed.colophon("Borja Mora Méndez", [
     ("Repositorio del proyecto", "https://github.com/BORJAMOME/sarima-ventas-retail-app"),
     ("Portfolio", "https://borjamora.es/"),
-    ("LinkedIn", "https://www.linkedin.com/in/borja-mora-mendez/"),
+    ("LinkedIn", "https://www.linkedin.com/in/borjamoramendez/"),
     ("Contacto", "mailto:borja.mora.mendez@gmail.com"),
 ])
