@@ -165,10 +165,10 @@ ed.beat(
     "contexto", "01", "Problema", "El problema",
     deck=[
         "Una cadena de supermercados tiene que tomar decisiones sobre lo que todavía no ha ocurrido.",
-        "Cuánto producto pedir. Cuánto personal necesitar. Cuándo prepararse para semanas de mayor demanda.",
+        "Cuánto producto pedir. Cuánta plantilla programar. Cuándo prepararse para las semanas de más demanda.",
         "Si compra de más, puede acumular stock innecesario. Si compra de menos, puede quedarse corto cuando las "
         "ventas suben.",
-        "La pregunta no es si podemos saber exactamente cuánto venderemos. Es <b>si podemos anticiparlo</b>.",
+        "Saber exactamente cuánto venderemos es imposible. Lo que sí podemos intentar es <b>anticiparlo</b>.",
     ],
 )
 ed.band(
@@ -176,8 +176,7 @@ ed.band(
     '¿Podemos anticipar las ventas de las próximas semanas utilizando '
     '<span class="accent">únicamente lo que ya ocurrió</span>?',
     f"Para comprobarlo, trabajé con {years_txt} años de ventas semanales y reservé el último año para ver si el modelo "
-    "era capaz de predecirlo sin haberlo visto. No podemos saber exactamente lo que va a pasar, pero quizá sí "
-    "anticiparlo mejor.",
+    "era capaz de predecirlo sin haberlo visto.",
 )
 
 # ============================================================ 02 · LOS DATOS ==
@@ -202,8 +201,8 @@ ed.passage(
     "El fichero no incluye promociones, festivos, climatología, campañas ni ninguna otra variable externa. Solo el "
     "historial de ventas.",
     "¿Es suficiente? Ese era precisamente el reto.",
-    "Si existe una señal útil en esos cinco años —una tendencia, una estacionalidad o patrones que se repiten— "
-    "debería estar escondida dentro de la propia serie.",
+    f"Si hay una señal útil en esos {years_txt} años (una tendencia, una estacionalidad, patrones que se repiten), "
+    "tiene que estar dentro de la propia serie.",
 )
 
 # ============================================================ 03 · ¿QUÉ CUENTAN CINCO AÑOS DE VENTAS? ==
@@ -258,7 +257,7 @@ with ed.split("estacionalidad", "8-4") as (viz, txt):
         ed.note(
             "<b>Detalle técnico.</b> La componente estacional de la descomposición es un promedio que se repite por "
             "construcción, así que la consistencia se comprueba año a año. Solo hay tres años completos: 2020 y 2024 "
-            "tienen media serie a cada lado porque la tendencia usa una media móvil centrada de 52 semanas."
+            "pierden medio año porque la tendencia usa una media móvil centrada de 52 semanas."
         )
 
 # ============================================================ 04 · DEL HISTÓRICO A UNA PREVISIÓN ==
@@ -371,10 +370,10 @@ ed.metrics([
      "Mantener la venta de la última semana de entrenamiento durante todo el año de test."),
 ])
 ed.insight(
-    "No se trataba de construir el modelo más complejo. Se trataba de comprobar si podía mejorar una forma muy "
-    f"sencilla de anticipar las ventas, y lo hace: un <b>{improv['mape']:.0f}% menos de error</b> que repetir el año "
-    "anterior. Pero la mejora no está en que el SARIMA sea sofisticado: está en <b>incorporar la tendencia y la "
-    "estacionalidad</b>. Una regla de una línea que también las incorpora llega casi al mismo error.",
+    "La prueba era ver si el modelo mejoraba una forma muy sencilla de anticipar las ventas, y lo hace: un "
+    f"<b>{improv['mape']:.0f}% menos de error</b> que repetir el año anterior. Esa mejora, eso sí, no sale de la "
+    "sofisticación del SARIMA, sino de <b>incorporar la tendencia y la estacionalidad</b>. Una regla de una línea "
+    "que también las incorpora llega casi al mismo error.",
     aside=f"La referencia ajustada usa el crecimiento del último año de entrenamiento ({sgn(growth_pct)}%), calculado solo "
           f"con datos anteriores al test, así que no hay fuga de información. Con {n_test} semanas, la diferencia entre "
           f"ambas ({pct(sarima_m['mape'], 2)} frente a {pct(growth_m['mape'], 2)}) queda dentro del ruido.",
@@ -411,14 +410,15 @@ ed.insight(
         f"10 daría {pvalue(rd['all_residuals']['lb10'])}: un rastro de autocorrelación que en gran parte es ese arranque."
     ),
 )
-ed.insight("La precisión importa. Saber dónde deja de ser perfecta también.", tight=True)
+ed.insight("El modelo recoge casi toda la estructura de la serie, pero no toda, y conviene saberlo antes de usarlo.",
+           tight=True)
 
 # ============================================================ 07 · PLAYGROUND ==
 ed.beat(
     "playground", "07", "Playground", "¿Qué pasará dentro de 1, 10 o 20 semanas?", weight="major",
     deck=[
         "El modelo no devuelve una única cifra como si el futuro estuviera escrito. Para cada semana genera una "
-        "<b>predicción central</b> y un <b>intervalo de confianza del 95%</b>.",
+        "<b>predicción central</b> y un <b>intervalo de predicción del 95%</b>.",
         "Elige cualquier semana dentro de las próximas 20 y observa cómo cambia la previsión.",
     ],
 )
@@ -452,7 +452,7 @@ ed.insight(
     f"Cuanto más lejos miramos, mayor es la incertidumbre, pero no de forma abrupta en este horizonte: dentro de las "
     f"próximas 20 semanas el intervalo se ensancha un {pct(iv['future_width_growth_pct'])} (de "
     f"{eur(iv['future_width_w1'])} a {eur(iv['future_width_w20'])}), mientras que en las {n_test} semanas del test "
-    f"casi se duplica (×{es(iv['test_width_ratio'], 1)}).",
+    f"se duplica con creces (×{es(iv['test_width_ratio'], 1)}).",
     aside=(
         f"En el test, el intervalo contuvo la venta real en {iv['coverage']} de {iv['n']} semanas (con un 95% de "
         f"confianza cabría esperar unas 49): sugiere que es algo prudente, con un margen medio de "
@@ -480,7 +480,7 @@ ed.metrics([
     ("Intervalo al 95%", f"{iv['coverage']} de {iv['n']}", "Semanas de test en las que la venta real cayó dentro del intervalo."),
 ])
 ed.insight(
-    f"Pero el resultado más interesante no es el {es(sarima_m['mape'], 2)}%. Es que la previsión mejora cuando dejamos de asumir que el "
+    f"Más interesante que el {es(sarima_m['mape'], 2)}% es el motivo: la previsión mejora cuando dejamos de asumir que el "
     "futuro será simplemente una repetición del pasado y <b>utilizamos también la tendencia y la estacionalidad que "
     "contiene la serie</b>. El SARIMA es una forma de hacerlo; una regla sencilla ajustada por crecimiento es otra, y "
     "en este test rinde casi igual."
@@ -510,7 +510,7 @@ with ed.figure("hipotesis"):
             "<b>Qué medir.</b> Coste de personal, cobertura y desviación frente a la demanda real.",
         ]},
         {"tag": "Hipótesis · Incertidumbre", "title": "Planificar con incertidumbre", "points": [
-            f"<b>Insight.</b> El intervalo de confianza aumenta cuanto más lejos está la fecha prevista "
+            f"<b>Insight.</b> El intervalo de predicción se ensancha cuanto más lejos está la fecha prevista "
             f"({sgn(iv['future_width_growth_pct'])}% en 20 semanas; ×{es(iv['test_width_ratio'], 1)} a 52).",
             "<b>Hipótesis.</b> Usar la predicción central como referencia a corto plazo y el rango completo para "
             "escenarios de planificación.",
@@ -519,18 +519,18 @@ with ed.figure("hipotesis"):
     ], count=3)
 ed.subhead("Una advertencia importante")
 ed.insight("Son <b>hipótesis de negocio</b>, no conclusiones del modelo. La previsión describe cómo se comportaron las "
-           "ventas en estos cinco años; decidir qué hacer requiere probar la acción y medir su efecto.", tight=True)
+           f"ventas en estos {years_txt} años; decidir qué hacer requiere probar la acción y medir su efecto.", tight=True)
 
 # ============================================================ 10 · LIMITACIONES ==
 ed.beat("limitaciones", "10", "Limitaciones", "Hasta dónde llega el modelo",
-        deck="Una previsión útil no es una previsión perfecta.")
+        deck="Dónde acierta, dónde no y qué se queda fuera.")
 ed.cards([
     {"title": "Lo que el modelo sí puede hacer", "color": "var(--positive)", "points": [
         f"Predecir las ventas semanales agregadas con un <b>MAPE del {es(sarima_m['mape'], 2)}%</b> sobre las {n_test} "
         "semanas de test.",
         "Capturar la <b>tendencia y la estacionalidad anual</b> presentes en el histórico.",
         "<b>Mejorar una referencia sencilla</b> basada en repetir el año anterior.",
-        "Mostrar un <b>intervalo de confianza</b> para cuantificar la incertidumbre.",
+        "Mostrar un <b>intervalo de predicción</b> para cuantificar la incertidumbre.",
     ]},
     {"title": "Lo que el modelo no puede hacer", "color": "var(--negative)", "points": [
         "Anticipar <b>cambios que no aparecen en el histórico</b>: promociones, crisis, nuevas tiendas o cambios "
@@ -546,7 +546,7 @@ ed.cards([
 ed.passage(
     "La siguiente iteración natural sería incorporar variables externas como promociones, festivos o eventos, y "
     "trabajar con una granularidad mayor.",
-    "Porque una cosa es predecir cuánto se venderá. <b>Otra muy distinta es entender por qué.</b>",
+    "Este modelo dice cuánto se venderá; para entender <b>por qué</b>, hacen falta esas variables.",
     aside=(
         f"Un único corte temporal ({n_test} semanas) y sin backtesting rodante: no se sabe cuánto varía el error en "
         "otros años. La previsión final se reajustó con las 260 semanas partiendo de los parámetros del ajuste de "
@@ -557,21 +557,21 @@ ed.passage(
 
 # ============================================================ 11 · CONCLUSIÓN ==
 ed.beat(
-    "conclusion", "11", "Conclusión", "El futuro no se puede conocer. Pero sí se puede estimar mejor.", weight="major",
+    "conclusion", "11", "Conclusión", "Una previsión que dice cuánto fiarse de ella", weight="major",
     deck=[
         f"Con {years_txt} años de ventas semanales, construí un modelo SARIMA capaz de anticipar las siguientes {n_test} "
         f"semanas con un MAPE del <b>{es(sarima_m['mape'], 2)}%</b> sobre datos que nunca había visto.",
         f"Frente a una previsión basada simplemente en repetir el año anterior, el error se redujo un "
         f"<b>{improv['mape']:.0f}%</b>. Pero una regla sencilla que también tiene en cuenta el crecimiento llega casi "
         "al mismo nivel: lo que funciona es incorporar la tendencia y la estacionalidad, no la complejidad del modelo.",
-        "El aprendizaje más importante no es que el modelo acierte. Es que <b>una buena previsión también tiene que "
-        "decir cuánto podemos confiar en ella</b>. El forecast aporta una estimación. El intervalo aporta el margen "
+        "Lo que más me llevo es que <b>una buena previsión también tiene que decir cuánto podemos confiar en "
+        "ella</b>. El forecast aporta una estimación. El intervalo aporta el margen "
         "de incertidumbre. Y la decisión sigue estando en el negocio.",
     ],
 )
 ed.band(
     "Para cerrar",
-    'No se trata de adivinar las ventas. Se trata de llegar a la próxima semana con '
+    'El objetivo era modesto: llegar a la próxima semana con '
     '<span class="accent">algo más que una intuición</span>.',
 )
 ed.colophon("Borja Mora Méndez", [

@@ -8,7 +8,7 @@ sola variable, sin promociones, festivos ni ningún dato externo.
 
 No hace falta saber nada de Machine Learning para seguirla: empieza por el problema, explica el método sin
 tecnicismos (el detalle técnico va aparte, en notas al margen) y termina dejándote explorar el forecast de las
-próximas 20 semanas con su intervalo de confianza.
+próximas 20 semanas con su intervalo de predicción.
 
 ## Ver la app
 
@@ -27,7 +27,7 @@ modelo **SARIMA(0,1,1)(0,1,1,52)** con 208 semanas de histórico y lo evalué so
   del último año de entrenamiento**, el error es del 2,28%: prácticamente igual. Lo que aporta la mejora es
   incorporar la tendencia y la estacionalidad, no la complejidad del SARIMA.
 - El intervalo del 95% contuvo la venta real en 52 de 52 semanas; dentro de las próximas 20 semanas se ensancha
-  solo un 9,5%, mientras que en las 52 del test casi se duplica.
+  solo un 9,5%, mientras que en las 52 del test se duplica con creces.
 
 ## Qué te vas a encontrar al recorrerla
 
