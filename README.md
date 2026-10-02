@@ -122,6 +122,10 @@ de espacio y de tipografía editoriales; `components/editorial.py` expone un com
 el mismo sistema que usan el resto de proyectos de ML del portfolio. Requiere `streamlit==1.58.0` (usa
 `st.container(key=...)` y el DOM de esa versión).
 
+## Licencia
+
+El código está bajo licencia [MIT](LICENSE). Los datasets de `data/` pertenecen a sus fuentes originales y no están incluidos en esta licencia.
+
 ---
 
 **Autor:** Borja Mora Méndez · [LinkedIn](https://www.linkedin.com/in/borjamoramendez/) · [borja.mora.mendez@gmail.com](mailto:borja.mora.mendez@gmail.com)
