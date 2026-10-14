@@ -1,4 +1,4 @@
-# SARIMA — Ventas Semanales Retail
+# SARIMA - Ventas Semanales Retail
 
 **¿Cuánto venderás la semana que viene?**
 
@@ -73,54 +73,6 @@ Algunas decisiones de rigor que están en la app y conviene conocer:
   del modelo, y contaminan Ljung-Box. Se apartan como un tramo continuo y se informa del rango que sale con otros
   cortes.
 
-## Ejecutar en local
-
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-Los resultados ya vienen calculados en `model/artifacts/`, así que no hace falta reentrenar nada. Solo si cambias
-el dataset (`data/arima.xlsx`) necesitas regenerarlos:
-
-```bash
-pip install statsmodels scikit-learn scipy openpyxl   # solo para regenerar
-python model/train.py
-python model/export_audit.py
-```
-
-<details>
-<summary>Estructura del proyecto, para quien quiera curiosear el código</summary>
-
-```
-app.py                    la aplicación — toda la narrativa, capítulo a capítulo
-components/
-  editorial.py              sistema editorial: un componente por función narrativa (lede, beat, figure…)
-  charts.py                 gráficos, con la paleta de colores del proyecto
-utils/
-  data_loader.py             carga de artefactos (con cache de Streamlit)
-model/
-  train.py                    entrena el SARIMA y calcula métricas, residuos y el forecast a 20 semanas
-  export_audit.py             comprobaciones adicionales sin reentrenar (referencias, residuos, intervalos…)
-  artifacts/                   resultados ya calculados
-data/                      el dataset original
-assets/editorial.css       sistema de composición editorial (rejilla, niveles de ancho, ritmo, tokens) — reutilizable
-assets/style.css           identidad de este proyecto (paleta y familias tipográficas)
-```
-
-</details>
-
-## Fuente
-
-Notebook original: [`03-Machine-Learning/04-series-temporales/arima/01-ventas-semanales-retail`](https://github.com/BORJAMOME/Data-Analytics-Portfolio/tree/main/03-Machine-Learning/04-series-temporales/arima/01-ventas-semanales-retail)
-en [Data Analytics Portfolio](https://github.com/BORJAMOME/Data-Analytics-Portfolio).
-
-### Sistema editorial (reutilizable en otros proyectos de ML)
-
-`assets/editorial.css` convierte el contenedor de Streamlit en una rejilla con cinco niveles de ancho y una escala
-de espacio y de tipografía editoriales; `components/editorial.py` expone un componente por función narrativa. Es
-el mismo sistema que usan el resto de proyectos de ML del portfolio. Requiere `streamlit==1.58.0` (usa
-`st.container(key=...)` y el DOM de esa versión).
 
 ## Licencia
 
