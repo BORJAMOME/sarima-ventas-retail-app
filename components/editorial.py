@@ -1,4 +1,4 @@
-"""Editorial system — componentes de narrativa para case studies de ML en Streamlit.
+"""Editorial system: componentes de narrativa para case studies de ML en Streamlit.
 
 Cada componente responde a UNA función narrativa (no a una «pieza de UI») y se coloca
 en el nivel de la rejilla que le corresponde (ver assets/editorial.css):
@@ -87,7 +87,7 @@ def topbar(brand: str, links: list, back_url: str, back_label: str = "&#8592; Po
 # ------------------------------------------------------------------ LEDE (WIDE)
 def lede(kicker: str, headline: str, deck: str, meta: list, anchor: str = "top"):
     """El comienzo del reportaje: KICKER → HEADLINE → DECK → METADATA.
-    meta: [(etiqueta, valor), ...]  — información de contexto, no badges."""
+    meta: [(etiqueta, valor), ...] | información de contexto, no badges."""
     rows = "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>" for k, v in meta)
     _md(
         f'<header id="{anchor}" class="ed-lede ed-wide">'
@@ -197,7 +197,7 @@ def metrics(rows: list, word: bool = False):
 # ------------------------------------------------------------------ PROCEDENCIA Y RUTA
 def provenance(items: list):
     """Procedencia de los datos como información editorial (no como tarjeta de metadatos).
-    items: [(etiqueta, valor), ...] — fuente, dataset, observaciones, variables, elaboración…"""
+    items: [(etiqueta, valor), ...]: fuente, dataset, observaciones, variables, elaboración…"""
     rows = "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>" for k, v in items)
     _md(f'<dl class="ed-meta ed-provenance">{rows}</dl>')
 

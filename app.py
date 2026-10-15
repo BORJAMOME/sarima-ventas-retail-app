@@ -1,5 +1,5 @@
 """
-SARIMA — Ventas Semanales Retail
+SARIMA: Ventas Semanales Retail
 Reportaje digital de datos: ¿hasta dónde puede llegar una previsión de ventas usando únicamente el pasado de
 la propia serie? Del problema de negocio a la decisión, pasando por los datos, el método, la evidencia y sus límites.
 

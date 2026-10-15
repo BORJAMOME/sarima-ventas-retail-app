@@ -1,5 +1,5 @@
 /* ==========================================================================
-   EDITORIAL SYSTEM v1 — composición editorial para case studies de ML en Streamlit
+   EDITORIAL SYSTEM v1: composición editorial para case studies de ML en Streamlit
    --------------------------------------------------------------------------
    Sistema GENÉRICO y reutilizable: no contiene contenido ni identidad de
    proyecto. La identidad (paleta, familias tipográficas) vive en style.css y
@@ -102,7 +102,7 @@ html{ scroll-behavior: smooth; }
 [class*="st-key-ed-"] > [data-testid="stElementContainer"]:first-child{ margin-top: 0; }
 
 /* ==========================================================================
-   RITMO VERTICAL — el hueco depende de la relación entre bloques
+   RITMO VERTICAL: el hueco depende de la relación entre bloques
    ========================================================================== */
 .stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-beat){ margin-top: var(--space-xl); }
 .stMainBlockContainer > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ed-beat--major){ margin-top: var(--space-2xl); }
@@ -169,7 +169,7 @@ html{ scroll-behavior: smooth; }
 a:focus-visible, summary:focus-visible, button:focus-visible{ outline: 2px solid var(--navy-3); outline-offset: 3px; }
 
 /* ==========================================================================
-   LEDE — el comienzo de un reportaje: KICKER → HEADLINE → DECK → METADATA
+   LEDE, el comienzo de un reportaje: KICKER → HEADLINE → DECK → METADATA
    ========================================================================== */
 .ed-lede{ padding-top: var(--space-lg); }
 .ed-lede .ed-kicker{ margin-bottom: var(--space-md); }
@@ -196,7 +196,7 @@ h1.ed-headline em{ font-style: italic; color: var(--text); }
 .ed-meta dd{ margin: 0; font-size: var(--caption); line-height: 1.45; color: var(--text); }
 
 /* ==========================================================================
-   BEAT — apertura de un momento narrativo (STORY)
+   BEAT: apertura de un momento narrativo (STORY)
    ========================================================================== */
 .ed-beat, .ed-lede{ scroll-margin-top: 4.5rem; }
 .ed-beat{ border-top: 1px solid var(--ink); padding-top: var(--space-sm); }
@@ -219,7 +219,7 @@ h3.ed-subhead{
 [class*="st-key-ed-"] .ed-subhead{ margin-bottom: var(--space-xs); }
 
 /* ==========================================================================
-   PASSAGE — prosa (READING) con notas al margen (ASIDE), sobre el eje STORY
+   PASSAGE: prosa (READING) con notas al margen (ASIDE), sobre el eje STORY
    ========================================================================== */
 .ed-passage{
   display: grid; grid-template-columns: minmax(0, var(--reading-width)) minmax(0, var(--aside-width));
@@ -232,7 +232,7 @@ h3.ed-subhead{
 .ed-aside-label{ display: block; margin-bottom: .3rem; }
 .ed-aside code, .ed-note code{ font-size: .92em; background: none; color: var(--text); padding: 0; }
 
-/* INSIGHT — la conclusión de una evidencia. Sin caja: escala, tinta y una regla corta */
+/* INSIGHT: la conclusión de una evidencia. Sin caja: escala, tinta y una regla corta */
 .ed-insight{
   font-size: calc(var(--body) * 1.06); line-height: 1.6; color: var(--ink); margin: 0; max-width: var(--reading-width);
 }
@@ -246,7 +246,7 @@ h3.ed-subhead{
 }
 
 /* ==========================================================================
-   FIGURE — PREGUNTA → VISUAL → CAPTION → INSIGHT
+   FIGURE: PREGUNTA → VISUAL → CAPTION → INSIGHT
    ========================================================================== */
 .ed-caption{
   display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); column-gap: var(--space-sm); row-gap: .15rem;
@@ -256,7 +256,7 @@ h3.ed-subhead{
 .ed-caption .ed-fig-text{ font-size: var(--caption); line-height: 1.5; color: var(--text); margin: 0; }
 .ed-caption .ed-source{ font-weight: 600; letter-spacing: .08em; color: var(--muted); }
 
-/* SPLIT — composición asimétrica en rejilla de 12 columnas (contenedor con clave `ed-wide-split-A-B-…`) */
+/* SPLIT: composición asimétrica en rejilla de 12 columnas (contenedor con clave `ed-wide-split-A-B-…`) */
 [class*="st-key-ed-wide-split-"] [data-testid="stHorizontalBlock"]{
   display: grid !important; grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
   column-gap: var(--grid-gap); align-items: start; row-gap: var(--space-md);
@@ -289,14 +289,14 @@ h3.ed-subhead{
 .ed-metrics--word .ed-metric{ grid-template-columns: minmax(0, 10rem) minmax(0, 9rem) minmax(0, 1fr); }
 .ed-metrics--word .ed-metric-value{ font-size: clamp(1.15rem, 1rem + .6vw, 1.45rem); line-height: 1.2; }
 
-/* PROCEDENCIA y RUTA — información editorial discreta */
+/* PROCEDENCIA y RUTA: información editorial discreta */
 .ed-provenance{ border-top: 1px solid var(--line); padding-top: var(--space-sm); grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--grid-gap); row-gap: .55rem; }
 .ed-provenance div{ grid-template-columns: 8.6rem minmax(0, 1fr); }
 .ed-route{ display: flex; flex-wrap: wrap; gap: .35rem .7rem; margin: 0; font-size: var(--caption); font-weight: 600; color: var(--muted); }
 .ed-route-sep{ color: var(--line); }
 
 /* ==========================================================================
-   COLS — columnas con regla superior (modelos, prioridades, límites). Sin cajas
+   COLS: columnas con regla superior (modelos, prioridades, límites). Sin cajas
    ========================================================================== */
 .ed-cols{ display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); column-gap: var(--grid-gap); row-gap: var(--space-md); }
 .ed-col{ border-top: 2px solid var(--ink); padding-top: var(--space-sm); }
@@ -308,7 +308,7 @@ h3.ed-subhead{
 .ed-list li::marker{ color: var(--muted); }
 
 
-/* CARDS — solo para entidades paralelas cuyo color las identifica (segmentos, lo que sí/no puede hacer).
+/* CARDS: solo para entidades paralelas cuyo color las identifica (segmentos, lo que sí/no puede hacer).
    Barra superior + fondo teñido al 7 % en el color de la entidad; el cuerpo va en tinta (contraste 10:1). */
 .ed-cards{ display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: var(--grid-gap); align-items: stretch; }
 .ed-card{
@@ -329,7 +329,7 @@ h3.ed-subhead{
 .ed-card-list li::marker{ color: var(--seg); }
 .ed-card b{ color: var(--ink); font-weight: 700; }
 
-/* STEPS — el método como recorrido numerado */
+/* STEPS: el método como recorrido numerado */
 .ed-steps{ border-top: 1px solid var(--ink); }
 .ed-step{
   display: grid; grid-template-columns: 3.2rem minmax(0, 15rem) minmax(0, 1fr);
@@ -340,7 +340,7 @@ h3.ed-subhead{
 .ed-step-text{ font-size: calc(var(--body) * .94); line-height: 1.6; color: var(--text); margin: 0; }
 
 /* ==========================================================================
-   FULL BLEED — momentos de alto impacto (dos en toda la pieza)
+   FULL BLEED: momentos de alto impacto (dos en toda la pieza)
    ========================================================================== */
 .ed-band{ background: var(--ink); color: #fff; padding-block: var(--space-lg); }
 .ed-band-inner{
@@ -380,7 +380,7 @@ div[data-testid="stSlider"] label, div[data-testid="stSelectbox"] label{ font-si
 .ed-colophon a:hover, .ed-colophon a:focus-visible{ color: var(--ink); }
 
 /* ==========================================================================
-   RESPONSIVE — mismo sistema en 12 / 8 / 4 columnas
+   RESPONSIVE: mismo sistema en 12 / 8 / 4 columnas
    ========================================================================== */
 @media (max-width: 1080px){                    /* la pista STORY ya no alberga READING + ASIDE */
   :root{ --grid-columns: 8; }
@@ -416,7 +416,7 @@ div[data-testid="stSlider"] label, div[data-testid="stSelectbox"] label{ font-si
 }
 
 /* ==========================================================================
-   MOTION — el sistema no depende de animaciones; sin ellas todo sigue igual
+   MOTION: el sistema no depende de animaciones; sin ellas todo sigue igual
    ========================================================================== */
 a, summary{ transition: color .15s; }
 @media (prefers-reduced-motion: reduce){

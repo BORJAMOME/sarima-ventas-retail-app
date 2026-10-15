@@ -97,7 +97,7 @@ def main():
     series_split_df.to_csv(ARTIFACTS / "series_split.csv", index=False)
 
     # ------------------------------------------------------------------
-    # 2) Estacionariedad — ADF original vs diferenciada (Metodologia)
+    # 2) Estacionariedad: ADF original vs diferenciada (Metodologia)
     # ------------------------------------------------------------------
     train_diff = train["Ventas"].diff().dropna()
     adf_results = [
