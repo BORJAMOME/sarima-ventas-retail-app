@@ -3,7 +3,7 @@
 En este proyecto he analizado hasta qué punto es posible predecir las ventas utilizando únicamente datos históricos de la propia serie. Para ello, he trabajado con cinco años de ventas semanales, sin incorporar variables externas como promociones o festivos.
 
 
-🔗 **[Abrir la app](https://sarima-ventas-retail.streamlit.app/)**
+🔗 **[➡ Abrir el proyecto](https://sarima-ventas-retail.streamlit.app/)**
 
 ## Contexto
 
