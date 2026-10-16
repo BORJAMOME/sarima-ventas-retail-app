@@ -1,37 +1,16 @@
-# SARIMA - Ventas Semanales Retail
+# ¿Cuánto venderás la semana que viene?
 
-**¿Cuánto venderás la semana que viene?**
+En este proyecto he analizado hasta qué punto es posible predecir las ventas utilizando únicamente datos históricos de la propia serie. Para ello, he trabajado con cinco años de ventas semanales, sin incorporar variables externas como promociones o festivos.
 
-Una aplicación interactiva, con formato de reportaje de datos, que comprueba hasta dónde puede llegar una
-previsión de ventas utilizando **únicamente el pasado de la propia serie**: cinco años de ventas semanales, una
-sola variable, sin promociones, festivos ni ningún dato externo.
-
-No hace falta saber nada de Machine Learning para seguirla: empieza por el problema, explica el método sin
-tecnicismos (el detalle técnico va aparte, en notas al margen) y termina dejándote explorar el forecast de las
-próximas 20 semanas con su intervalo de predicción.
-
-## Ver la app
 
 🔗 **[Abrir la app](https://sarima-ventas-retail.streamlit.app/)**
 
-## De qué trata, en dos frases
+## Contexto
 
 Una cadena de supermercados necesita anticipar cuánto va a vender para planificar pedidos y personal. Entrené un
 modelo **SARIMA(0,1,1)(0,1,1,52)** con 208 semanas de histórico y lo evalué sobre 52 semanas que nunca había visto.
 
-**El resultado, con matices:**
-
-- Error medio (MAPE) del **2,21%** en las 52 semanas de test, un 74% menos que repetir la misma semana del año
-  anterior (8,39%).
-- Pero esa referencia ignora que las ventas crecen (~9% al año). Con la misma regla **ajustada por el crecimiento
-  del último año de entrenamiento**, el error es del 2,28%: prácticamente igual. Lo que aporta la mejora es
-  incorporar la tendencia y la estacionalidad, no la complejidad del SARIMA.
-- El intervalo del 95% contuvo la venta real en 52 de 52 semanas; dentro de las próximas 20 semanas se ensancha
-  solo un 9,5%, mientras que en las 52 del test se duplica con creces.
-
-## Qué te vas a encontrar al recorrerla
-
-Once capítulos, cada uno responde a una pregunta:
+## Qué te encontrarás en este proyecto
 
 1. **El problema**: decidir sobre lo que todavía no ha ocurrido
 2. **Los datos**: 260 semanas, una única variable
@@ -50,33 +29,6 @@ Once capítulos, cada uno responde a una pregunta:
 Python + [Streamlit](https://streamlit.io) para la aplicación, y [statsmodels](https://www.statsmodels.org/)
 (SARIMAX) para el modelo. Todo lo pesado se calcula **una vez, en local**, y la app solo lee los resultados: en
 Streamlit Cloud no reentrena nada ni depende de `statsmodels` ni de `scipy`.
-
-- `model/train.py` replica la metodología del notebook original y guarda métricas, previsiones, residuos y el
-  forecast a 20 semanas.
-- `model/export_audit.py` calcula, sin reentrenar, lo que la narrativa necesita para no afirmar más de lo que
-  los datos permiten: la referencia ajustada por crecimiento, los residuos sin el arranque del filtro, el
-  ensanchamiento del intervalo y la consistencia de la estacionalidad año a año.
-
-Nada del texto está escrito a mano: si cambian los datos, cambian las cifras.
-
-Algunas decisiones de rigor que están en la app y conviene conocer:
-
-- **Una referencia justa.** «Repetir el año anterior» pierde porque ignora el crecimiento; una regla igual de
-  simple que sí lo tiene en cuenta llega casi al mismo error (2,28% frente a 2,21%, sin diferencia concluyente
-  con un año de test).
-- **La estacionalidad se comprueba año a año.** La componente estacional de una descomposición se repite por
-  construcción, así que no prueba nada por sí sola. Aquí se compara el patrón de cada año completo
-  (correlación 0,83–0,90).
-- **La ACF no muestra un pico en el retardo 52.** El término estacional se justifica por el patrón anual de los
-  datos y por su significación en el modelo, no por la ACF.
-- **Residuos sin el arranque.** Con d=1 y D=1 (s=52) las primeras 53 observaciones son inicialización, no error
-  del modelo, y contaminan Ljung-Box. Se apartan como un tramo continuo y se informa del rango que sale con otros
-  cortes.
-
-
-## Licencia
-
-El código está bajo licencia [MIT](LICENSE). Los datasets de `data/` pertenecen a sus fuentes originales y no están incluidos en esta licencia.
 
 ---
 
